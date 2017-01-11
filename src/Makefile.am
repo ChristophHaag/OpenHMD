@@ -49,6 +49,17 @@ libopenhmd_la_LDFLAGS += $(hidapi_LIBS)
 
 endif
 
+if BUILD_DRIVER_OSVR_HDK
+
+libopenhmd_la_SOURCES += \
+	drv_osvr_hdk/osvr.c \
+	drv_osvr_hdk/packet.c
+
+libopenhmd_la_CPPFLAGS += $(hidapi_CFLAGS) -DDRIVER_OSVR_HDK
+libopenhmd_la_LDFLAGS += $(hidapi_LIBS)
+
+endif
+
 if BUILD_DRIVER_WMR
 
 libopenhmd_la_SOURCES += \

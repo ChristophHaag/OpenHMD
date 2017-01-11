@@ -68,6 +68,15 @@ AC_ARG_ENABLE([driver-deepoon],
 
 AM_CONDITIONAL([BUILD_DRIVER_DEEPOON], [test "x$driver_deepoon_enabled" != "xno"])
 
+# OSVR HDK Driver
+AC_ARG_ENABLE([driver-osvr-hdk],
+        [AS_HELP_STRING([--disable-driver-osvr-hdk],
+                [disable building of OSVR HDK driver [default=yes]])],
+        [driver_osvr_hdk_enabled=$enableval],
+        [driver_osvr_hdk_enabled='yes'])
+
+AM_CONDITIONAL([BUILD_DRIVER_OSVR_HDK], [test "x$driver_osvr_hdk_enabled" != "xno"])
+
 # Windows Mixed Reality Driver
 AC_ARG_ENABLE([driver-wmr],
         [AS_HELP_STRING([--disable-driver-wmr],

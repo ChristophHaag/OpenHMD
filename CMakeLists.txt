@@ -34,6 +34,7 @@ set(openhmd_source_files
 
 OPTION(OPENHMD_DRIVER_OCULUS_RIFT "Oculus Rift DK1 and DK2" ON)
 OPTION(OPENHMD_DRIVER_DEEPOON "Deepoon E2" ON)
+OPTION(OPENHMD_DRIVER_OSVR_HDK "OSVR HDK (Tested with HDK2)" ON)
 OPTION(OPENHMD_DRIVER_WMR "Windows Mixed Reality" ON)
 OPTION(OPENHMD_DRIVER_PSVR "Sony PSVR" ON)
 OPTION(OPENHMD_DRIVER_HTC_VIVE "HTC Vive" ON)
@@ -67,6 +68,18 @@ if(OPENHMD_DRIVER_DEEPOON)
 	include_directories(${HIDAPI_INCLUDE_DIRS})
 	set(LIBS ${LIBS} ${HIDAPI_LIBRARIES})
 endif(OPENHMD_DRIVER_DEEPOON)
+
+if(OPENHMD_DRIVER_OSVR_HDK)
+	set(openhmd_source_files ${openhmd_source_files}
+	${CMAKE_CURRENT_LIST_DIR}/src/drv_osvr_hdk/osvr.c
+	${CMAKE_CURRENT_LIST_DIR}/src/drv_osvr_hdk/packet.c
+	)
+	add_definitions(-DDRIVER_OSVR_HDK)
+
+	find_package(HIDAPI REQUIRED)
+	include_directories(${HIDAPI_INCLUDE_DIRS})
+	set(LIBS ${LIBS} ${HIDAPI_LIBRARIES})
+endif(OPENHMD_DRIVER_OSVR_HDK)
 
 if(OPENHMD_DRIVER_WMR)
 	set(openhmd_source_files ${openhmd_source_files}
