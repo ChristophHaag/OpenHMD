@@ -156,9 +156,8 @@ if (OPENHMD_EXAMPLE_SDL)
 	add_subdirectory(./examples/opengl)
 endif (OPENHMD_EXAMPLE_SDL)
 
-if (UNIX)
-	set(LIBS ${LIBS} rt pthread)
-endif (UNIX)
+find_package(Threads REQUIRED)
+set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 link_libraries(${LIBS})
 add_library(openhmd-shared SHARED ${openhmd_source_files})
