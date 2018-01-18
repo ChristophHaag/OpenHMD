@@ -34,25 +34,11 @@ typedef struct {
 	FLT libsurvive_pos[3];
 	FLT libsurvive_quat[4];
 
-	struct SurviveContext * ctx;
-
-	vec3f pos;
-	quatf rot;
-	uint32_t last_ticks;
-	uint8_t last_seq;
+	struct SurviveContext * libsurvive_ctx;
 
 	ohmd_thread* survive_poll_thread;
 	ohmd_mutex* survive_copy_mutex;
-
-	vive_config_packet vive_config;
 } vive_priv;
-
-static void update_device(ohmd_device* device)
-{
-	vive_priv* priv = (vive_priv*)device;
-	//printf("Update!\n");
-	//survive_poll(priv->ctx);
-}
 
 static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 {
@@ -61,34 +47,18 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 	ohmd_lock_mutex(priv->survive_copy_mutex);
 	switch(type){
 	case OHMD_ROTATION_QUAT:
-		/*
-		out[0] = priv->rot.w;
-		out[1] = priv->rot.x;
-		out[2] = priv->rot.y;
-		out[3] = priv->rot.z;
-		*/
-
 		// libsurvive_quat is 0=w 1=x 2=y 3=z
 		// out is 0=x 1=y 2=z 3=w
-
 		out[0] = priv->libsurvive_quat[1];
 		out[1] = priv->libsurvive_quat[2];
 		out[2] = priv->libsurvive_quat[3];
 		out[3] = priv->libsurvive_quat[0];
-
 		break;
 
 	case OHMD_POSITION_VECTOR:
-		/*
-		out[0] = priv->pos.x;
-		out[1] = priv->pos.y;
-		out[2] = priv->pos.z;
-		*/
-
 		out[0] = priv->libsurvive_pos[0];
 		out[1] = priv->libsurvive_pos[1];
 		out[2] = priv->libsurvive_pos[2];
-
 		break;
 
 	case OHMD_DISTORTION_K:
@@ -101,17 +71,20 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 		return -1;
 		break;
 	}
-	ohmd_unlock_mutex(priv->survive_copy_mutex);
 
+	ohmd_unlock_mutex(priv->survive_copy_mutex);
 	return 0;
 }
 
 static void close_device(ohmd_device* device)
 {
+	vive_priv* priv = (vive_priv*) device;
+	 ohmd_destroy_thread(priv->survive_poll_thread);
+	 ohmd_destroy_mutex(priv->survive_copy_mutex);
 }
 
 
-void testprog_button_process(SurviveObject * so, uint8_t eventType, uint8_t buttonId, uint8_t axis1Id, uint16_t axis1Val, uint8_t axis2Id, uint16_t axis2Val)
+void libsurvive_button_callback(SurviveObject * so, uint8_t eventType, uint8_t buttonId, uint8_t axis1Id, uint16_t axis1Val, uint8_t axis2Id, uint16_t axis2Val)
 {
 	survive_default_button_process(so, eventType, buttonId, axis1Id, axis1Val, axis2Id, axis2Val);
 
@@ -130,21 +103,12 @@ void testprog_button_process(SurviveObject * so, uint8_t eventType, uint8_t butt
 }
 
 
-void testprog_raw_pose_process(SurviveObject * so, uint8_t lighthouse, FLT *pos, FLT *quat)
+void libsurvive_raw_pose_callback(SurviveObject * so, uint8_t lighthouse, FLT *pos, FLT *quat)
 {
 	survive_default_raw_pose_process(so, lighthouse, pos, quat);
 
-	// print the pose;
+	// use pose of only lighthouse 0
 	if (strcmp(so->codename, "HMD") == 0 && lighthouse == 0) {
-
-		/*
-		for (int i = 0; i < 3; i++) {
-			if (pos[i] < -10 || pos[i] > 10) return;
-		}
-		for (int i = 0; i < 4; i++) {
-			if (quat[i] < -10 || quat[i] > 10) return;
-		}
-		*/
 
 		printf("Pose: [%1.1x][%s][% 08.8f,% 08.8f,% 08.8f] [% 08.8f,% 08.8f,% 08.8f,% 08.8f]\n", lighthouse, so->codename, pos[0], pos[1], pos[2], quat[0], quat[1], quat[2], quat[3]);
 
@@ -162,7 +126,7 @@ void testprog_raw_pose_process(SurviveObject * so, uint8_t lighthouse, FLT *pos,
 	}
 }
 
-void testprog_imu_process(SurviveObject * so, int mask, FLT * accelgyromag, uint32_t timecode, int id)
+void libsurvive_imu_callback(SurviveObject * so, int mask, FLT * accelgyromag, uint32_t timecode, int id)
 {
 	survive_default_imu_process(so, mask, accelgyromag, timecode, id);
 }
@@ -170,21 +134,20 @@ void testprog_imu_process(SurviveObject * so, int mask, FLT * accelgyromag, uint
 
 static unsigned int survive_poll_thread(void* argument) {
 	vive_priv* priv = (vive_priv*) argument;
-	priv->ctx = survive_init( 0 );
-	priv->ctx->user_ptr = argument; // to pass our vive_priv struct to the testprog_raw_pose_process callback
+	priv->libsurvive_ctx = survive_init( 0 );
+	priv->libsurvive_ctx->user_ptr = argument; // to pass our vive_priv struct to the testprog_raw_pose_process callback
 
-	if( !priv->ctx )
+	if( !priv->libsurvive_ctx )
 	{
 		fprintf( stderr, "Fatal. Could not start\n" );
 	}
 
-	//printf("thread %d installs libsurvive callbacks\n", pthread_self());
-	survive_install_button_fn(priv->ctx, testprog_button_process);
-	survive_install_raw_pose_fn(priv->ctx, testprog_raw_pose_process);
-	survive_install_imu_fn(priv->ctx, testprog_imu_process);
-	survive_cal_install(priv->ctx);
+	survive_install_button_fn(priv->libsurvive_ctx, libsurvive_button_callback);
+	survive_install_raw_pose_fn(priv->libsurvive_ctx, libsurvive_raw_pose_callback);
+	survive_install_imu_fn(priv->libsurvive_ctx, libsurvive_imu_callback);
+	survive_cal_install(priv->libsurvive_ctx);
 
-	while(survive_poll(priv->ctx) == 0) {
+	while(survive_poll(priv->libsurvive_ctx) == 0) {
 	}
 	return 0;
 }
@@ -196,24 +159,9 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	if(!priv)
 		return NULL;
 
-	int hret = 0;
-
 	priv->base.ctx = driver->ctx;
 
-	int idx = atoi(desc->path);
-
-	/*
-	dump_info_string(hid_get_manufacturer_string, "manufacturer", priv->hmd_handle);
-	dump_info_string(hid_get_product_string , "product", priv->hmd_handle);
-	dump_info_string(hid_get_serial_number_string, "serial number", priv->hmd_handle);
-	*/
-
-	// turn the display on
-	//hret = hid_send_feature_report(priv->hmd_handle, vive_magic_power_on, sizeof(vive_magic_power_on));
-	//printf("power on magic: %d\n", hret);
-
-
-	priv->survive_poll_thread = ohmd_create_thread(priv, survive_poll_thread, priv);
+                                                  	priv->survive_poll_thread = ohmd_create_thread(driver->ctx, survive_poll_thread, priv);
 	priv->survive_copy_mutex = ohmd_create_mutex(driver->ctx);
 	//printf("thread %d creates libsurvive thread\n", pthread_self());
 
@@ -271,19 +219,10 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 			eye_to_screen_distance);
 
 	// set up device callbacks
-	priv->base.update = update_device;
 	priv->base.getf = getf;
 	priv->base.close = close_device;
 
-	//ofq_init(&priv->gyro_q, 128);
-
 	return (ohmd_device*)priv;
-
-cleanup:
-	if(priv)
-		free(priv);
-
-	return NULL;
 }
 
 static void get_device_list(ohmd_driver* driver, ohmd_device_list* list)
@@ -295,7 +234,7 @@ static void get_device_list(ohmd_driver* driver, ohmd_device_list* list)
 	while (cur_dev) {
 		ohmd_device_desc* desc = &list->devices[list->num_devices++];
 
-		strcpy(desc->driver, "OpenHMD HTC Vive Driver");
+		strcpy(desc->driver, "OpenHMD HTC Vive Driver (libsurvive)");
 		strcpy(desc->vendor, "HTC/Valve");
 		strcpy(desc->product, "HTC Vive");
 
@@ -320,10 +259,6 @@ static void get_device_list(ohmd_driver* driver, ohmd_device_list* list)
 
 static void destroy_driver(ohmd_driver* drv)
 {
-	/*
-	ohmd_destroy_thread(priv->survive_poll_thread);
-	ohmd_destroy_mutex(priv->survive_copy_mutex);
-	*/
 	LOGD("shutting down HTC Vive driver");
 	free(drv);
 }
