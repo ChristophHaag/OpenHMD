@@ -47,8 +47,6 @@ typedef struct {
 	vive_config_packet vive_config;
 } vive_priv;
 
-static vive_priv* global_priv;
-
 static void update_device(ohmd_device* device)
 {
 	vive_priv* priv = (vive_priv*)device;
@@ -60,7 +58,7 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 {
 	vive_priv* priv = (vive_priv*)device;
 
-	ohmd_lock_mutex(global_priv->survive_copy_mutex);
+	ohmd_lock_mutex(priv->survive_copy_mutex);
 	switch(type){
 	case OHMD_ROTATION_QUAT:
 		/*
@@ -103,7 +101,7 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 		return -1;
 		break;
 	}
-	ohmd_unlock_mutex(global_priv->survive_copy_mutex);
+	ohmd_unlock_mutex(priv->survive_copy_mutex);
 
 	return 0;
 }
@@ -137,7 +135,7 @@ void testprog_raw_pose_process(SurviveObject * so, uint8_t lighthouse, FLT *pos,
 	survive_default_raw_pose_process(so, lighthouse, pos, quat);
 
 	// print the pose;
-	if (strcmp(so->codename, "HMD") == 0 && lighthouse == 1) {
+	if (strcmp(so->codename, "HMD") == 0 && lighthouse == 0) {
 
 		/*
 		for (int i = 0; i < 3; i++) {
@@ -150,7 +148,7 @@ void testprog_raw_pose_process(SurviveObject * so, uint8_t lighthouse, FLT *pos,
 
 		printf("Pose: [%1.1x][%s][% 08.8f,% 08.8f,% 08.8f] [% 08.8f,% 08.8f,% 08.8f,% 08.8f]\n", lighthouse, so->codename, pos[0], pos[1], pos[2], quat[0], quat[1], quat[2], quat[3]);
 
-		vive_priv* priv = global_priv;
+		vive_priv* priv = so->ctx->user_ptr;
 		ohmd_lock_mutex(priv->survive_copy_mutex);
 		priv->libsurvive_pos[0] = pos[0];
 		priv->libsurvive_pos[1] = pos[1];
@@ -172,8 +170,9 @@ void testprog_imu_process(SurviveObject * so, int mask, FLT * accelgyromag, uint
 
 static unsigned int survive_poll_thread(void* argument) {
 	vive_priv* priv = (vive_priv*) argument;
-	global_priv = priv; // TODO: get rid of this
 	priv->ctx = survive_init( 0 );
+	priv->ctx->user_ptr = argument; // to pass our vive_priv struct to the testprog_raw_pose_process callback
+
 	if( !priv->ctx )
 	{
 		fprintf( stderr, "Fatal. Could not start\n" );
@@ -214,7 +213,7 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	//printf("power on magic: %d\n", hret);
 
 
-	priv->survive_poll_thread = ohmd_create_thread(driver->ctx, survive_poll_thread, priv);
+	priv->survive_poll_thread = ohmd_create_thread(priv, survive_poll_thread, priv);
 	priv->survive_copy_mutex = ohmd_create_mutex(driver->ctx);
 	//printf("thread %d creates libsurvive thread\n", pthread_self());
 
