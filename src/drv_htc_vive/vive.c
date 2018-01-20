@@ -7,16 +7,8 @@
 
 /* HTC Vive Driver */
 
-#define FEATURE_BUFFER_SIZE 256
-
 #define HTC_ID                   0x0bb4
 #define VIVE_HMD                 0x2c87
-
-#define VALVE_ID                 0x28de
-#define VIVE_WATCHMAN_DONGLE     0x2101
-#define VIVE_LIGHTHOUSE_FPGA_RX  0x2000
-
-#define VIVE_TIME_DIV 48000000.0f
 
 #include <string.h>
 #include <wchar.h>
@@ -31,8 +23,8 @@
 
 typedef struct {
 	ohmd_device base;
-	FLT libsurvive_pos[3];
-	FLT libsurvive_quat[4];
+	double libsurvive_pos[3];
+	double libsurvive_quat[4];
 
 	struct SurviveContext * libsurvive_ctx;
 
@@ -103,7 +95,7 @@ void libsurvive_button_callback(SurviveObject * so, uint8_t eventType, uint8_t b
 }
 
 
-void libsurvive_raw_pose_callback(SurviveObject * so, uint8_t lighthouse, FLT *pos, FLT *quat)
+void libsurvive_raw_pose_callback(SurviveObject * so, uint8_t lighthouse, double *pos, double *quat)
 {
 	survive_default_raw_pose_process(so, lighthouse, pos, quat);
 
@@ -126,7 +118,7 @@ void libsurvive_raw_pose_callback(SurviveObject * so, uint8_t lighthouse, FLT *p
 	}
 }
 
-void libsurvive_imu_callback(SurviveObject * so, int mask, FLT * accelgyromag, uint32_t timecode, int id)
+void libsurvive_imu_callback(SurviveObject * so, int mask, double * accelgyromag, uint32_t timecode, int id)
 {
 	survive_default_imu_process(so, mask, accelgyromag, timecode, id);
 }

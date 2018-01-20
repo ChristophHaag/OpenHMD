@@ -26,6 +26,7 @@ set(survive_source_files
 )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-unused-variable -Wno-unused-but-set-variable") #-pedantic -Wextra")
+add_definitions(-DUSE_DOUBLE)
 
 add_library(survive SHARED ${survive_source_files})
 set_property(TARGET survive PROPERTY C_STANDARD 11)
