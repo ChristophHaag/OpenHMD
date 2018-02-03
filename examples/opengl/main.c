@@ -131,6 +131,10 @@ int main(int argc, char** argv)
 	ohmd_device_settings_seti(settings, OHMD_IDS_AUTOMATIC_UPDATE, &auto_update);
 
 	ohmd_device* hmd = ohmd_list_open_device_s(ctx, 0, settings);
+	printf("Using device 0:\n");
+	printf("  vendor:  %s\n", ohmd_list_gets(ctx, 0, OHMD_VENDOR));
+	printf("  product: %s\n", ohmd_list_gets(ctx, 0, OHMD_PRODUCT));
+
 	ohmd_device_geti(hmd, OHMD_SCREEN_HORIZONTAL_RESOLUTION, &hmd_w);
 	ohmd_device_geti(hmd, OHMD_SCREEN_VERTICAL_RESOLUTION, &hmd_h);
 	float ipd;
