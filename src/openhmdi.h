@@ -140,6 +140,7 @@ void ohmd_set_universal_distortion_k(ohmd_device_properties* props, float a, flo
 void ohmd_set_universal_aberration_k(ohmd_device_properties* props, float r, float g, float b);
 
 // drivers
+ohmd_driver* ohmd_create_simulator_drv(ohmd_context* ctx);
 ohmd_driver* ohmd_create_dummy_drv(ohmd_context* ctx);
 ohmd_driver* ohmd_create_oculus_rift_drv(ohmd_context* ctx);
 ohmd_driver* ohmd_create_deepoon_drv(ohmd_context* ctx);
