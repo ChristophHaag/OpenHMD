@@ -109,14 +109,14 @@ void libsurvive_raw_pose_callback(SurviveObject * so, uint8_t lighthouse, double
 
 		vive_priv* priv = so->ctx->user_ptr;
 		ohmd_lock_mutex(priv->survive_copy_mutex);
-		priv->libsurvive_pos[0] = pos[0];
-		priv->libsurvive_pos[1] = pos[1];
-		priv->libsurvive_pos[2] = pos[2];
+		priv->libsurvive_pos[0] = - pos[0];
+		priv->libsurvive_pos[1] =   pos[1];
+		priv->libsurvive_pos[2] = - pos[2];
 
-		priv->libsurvive_quat[0] = quat[0];
-		priv->libsurvive_quat[1] = quat[1];
-		priv->libsurvive_quat[2] = quat[2];
-		priv->libsurvive_quat[3] = quat[3];
+		priv->libsurvive_quat[0] =   quat[0];
+		priv->libsurvive_quat[1] = - quat[1];
+		priv->libsurvive_quat[2] =   quat[2];
+		priv->libsurvive_quat[3] = - quat[3];
 		ohmd_unlock_mutex(priv->survive_copy_mutex);
 	}
 }
