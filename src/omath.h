@@ -52,6 +52,7 @@ void oquatf_get_rotated(const quatf* me, const vec3f* vec, vec3f* out_vec);
 void oquatf_mult_me(quatf* me, const quatf* q);
 void oquatf_mult(const quatf* me, const quatf* q, quatf* out_q);
 void oquatf_diff(const quatf* me, const quatf* q, quatf* out_q);
+void oquatf_slerp (float fT, const quatf* rkP, const quatf* rkQ, bool shortestPath, quatf* out_q);
 void oquatf_normalize_me(quatf* me);
 float oquatf_get_length(const quatf* me);
 float oquatf_get_dot(const quatf* me, const quatf* q);
