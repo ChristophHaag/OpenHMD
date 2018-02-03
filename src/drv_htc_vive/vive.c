@@ -48,6 +48,11 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 		out[1] = (FLT) priv->libsurvive_quat[2];
 		out[2] = (FLT) priv->libsurvive_quat[3];
 		out[3] = (FLT) priv->libsurvive_quat[0];
+
+		//rotation 90° around X axis
+		//quatf abs_rotate_offset = { sqrt(0.5), 0, 0 ,sqrt(0.5) };
+		//oquatf_mult_me(out_quat, &abs_rotate_offset);
+
 		break;
 
 	case OHMD_POSITION_VECTOR:
