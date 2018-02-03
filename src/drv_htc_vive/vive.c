@@ -35,6 +35,8 @@ typedef struct {
 	ohmd_mutex* survive_copy_mutex;
 } vive_priv;
 
+quatf abs_rotate_offset = { -sqrt(0.5), 0, 0 ,sqrt(0.5) };
+
 static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 {
 	vive_priv* priv = (vive_priv*)device;
@@ -50,8 +52,7 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 		out[3] = (FLT) priv->libsurvive_quat[0];
 
 		//rotation 90° around X axis
-		//quatf abs_rotate_offset = { sqrt(0.5), 0, 0 ,sqrt(0.5) };
-		//oquatf_mult_me(out_quat, &abs_rotate_offset);
+		oquatf_mult_me(out, &abs_rotate_offset);
 
 		break;
 
@@ -59,6 +60,8 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 		out[0] = (FLT) priv->libsurvive_pos[0];
 		out[1] = (FLT) priv->libsurvive_pos[1];
 		out[2] = (FLT) priv->libsurvive_pos[2];
+
+		oquatf_get_rotated(&abs_rotate_offset, out, out);
 		break;
 
 	case OHMD_DISTORTION_K:
