@@ -54,6 +54,9 @@ void oquatf_mult(const quatf* me, const quatf* q, quatf* out_q);
 void oquatf_diff(const quatf* me, const quatf* q, quatf* out_q);
 void oquatf_slerp (float fT, const quatf* rkP, const quatf* rkQ, bool shortestPath, quatf* out_q);
 void oquatf_normalize_me(quatf* me);
+// https://stackoverflow.com/a/34805024
+// to get a quat with 10 degree rotation around y axis, call oquatf_from_angles(0,1,0,10,&quat);
+void oquatf_from_angles(double x, double y, double z, double degrees, quatf* out);
 float oquatf_get_length(const quatf* me);
 float oquatf_get_dot(const quatf* me, const quatf* q);
 void oquatf_inverse(quatf* me);
