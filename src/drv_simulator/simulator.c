@@ -20,14 +20,14 @@ long long timeInMilliseconds(void) {
 
 typedef struct {
 	ohmd_device base;
-	quatf current_quat;
 	vec3f current_pos;
 	bool forward;
 	bool left;
 	int id;
 	long long lastpos;
 	long long lastquat;
-	double totals;
+	double yangle;
+	double xangle;
 } simulator_priv;
 
 static void update_device(ohmd_device* device)
@@ -44,27 +44,16 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 	switch(type){
 	case OHMD_ROTATION_QUAT:
 		priv->lastquat = now;
-		//quatf abs_rotate_offset = { sqrt(0.5), 0, 0 , sqrt(0.5) };
-		//oquatf_mult_me((quatf*)&priv->current_quat, &abs_rotate_offset);
-		priv->current_quat.x += (priv->left ? -0.01 : 0.01);
-		priv->totals += sec;
-		if (priv->totals > 1) {
-			priv->totals = 0;
-			priv->left = !priv->left;
-		}
-
-		//oquatf_normalize_me(&priv->current_quat);
-		out[0] = priv->current_quat.w;
-		out[1] = priv->current_quat.x;
-		out[2] = priv->current_quat.y;
-		out[3] = priv->current_quat.z;
+		priv->yangle += 10*sec;
+		//printf("%f\n", priv->angle);
+		oquatf_from_angles(0,1,0,priv->yangle, (quatf*) out);
 		break;
 
 	case OHMD_POSITION_VECTOR:
 		if(priv->id == 0){
 			// HMD
 			priv->lastpos = now;
-			priv->current_pos.z = priv->current_pos.z + (priv->forward ? sec: -sec );
+			priv->current_pos.z = priv->current_pos.z + (priv->forward ? sec / 2.: -sec / 2. );
 			//printf("%f %f \n", sec, priv->current_pos.z);
 			if (fabs(priv->current_pos.z) > 0.7) priv->forward = !priv->forward;
 			out[0] = priv->current_pos.x;
@@ -147,7 +136,7 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	priv->base.getf = getf;
 
 
-	priv->current_quat.z = 1;
+	//priv->current_quat.z = 1;
 	priv->current_pos.x = 0;
 	priv->current_pos.y = 0;
 	priv->current_pos.z = 0;
