@@ -39,18 +39,19 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 	simulator_priv* priv = (simulator_priv*)device;
 
 	long long now = timeInMilliseconds();
-	double sec = (now - priv->last_rotation_update) / 1000.;
+	double sec;
 	switch(type){
 	case OHMD_ROTATION_QUAT:
+		sec = (now - priv->last_rotation_update) / 1000.;
 		priv->last_rotation_update = now;
-		priv->current_y_angle += 10*sec;
-		//printf("%f\n", priv->angle);
-		oquatf_from_angles(0,1,0,priv->current_y_angle, (quatf*) out);
+		priv->current_y_angle += 10*sec; // rotate 10°/second
+		oquatf_from_angles(0, 1, 0, priv->current_y_angle, (quatf*) out);
 		break;
 
 	case OHMD_POSITION_VECTOR:
 		if(priv->id == 0){
 			// HMD
+			sec = (now - priv->last_pos_update) / 1000.;
 			priv->last_pos_update = now;
 			priv->current_pos.z = priv->current_pos.z + (priv->forward ? sec / 2.: -sec / 2. );
 			//printf("%f %f \n", sec, priv->current_pos.z);
