@@ -69,7 +69,7 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 			out[0] = 0;
 			out[1] = 0;
 			if (priv->move_hmd)
-				out[2] = sin(priv->total_hmd_pos_time / 2.) / 4. + 1;
+				out[2] = sin(priv->total_hmd_pos_time / 4.) / 1.5;
 			else
 				out[2] = 0;
 		}
@@ -86,7 +86,7 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 				out[0] = -0.25;
 			//printf("%f %f \n", sec, priv->current_pos.z);
 			out[1] = 0;
-			out[2] = 0;
+			out[2] = -0.5;
 		}
 		else
 		{
@@ -100,7 +100,7 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 				out[1] = sin(priv->total_rcontroller_pos_time / 2.) / 2.;
 			else
 				out[1] = 0;
-			out[2] = 0;
+			out[2] = -0.5;
 		}
 		break;
 
