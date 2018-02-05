@@ -27,16 +27,8 @@ typedef struct {
 	bool move_lcontroller;
 	bool move_rcontroller;
 
-	long long last_hmd_pos_update;
-	double total_hmd_pos_time;
-	long long last_hmd_rotation_update;
-	double total_hmd_rotation_time;
-
-	long long last_lcontroller_pos_update;
-	double total_lcontroller_pos_time;
-
-	long long last_rcontroller_pos_update;
-	double total_rcontroller_pos_time;
+	long long last_update;
+	double total_time;
 } simulator_priv;
 
 static void update_device(ohmd_device* device)
@@ -49,39 +41,31 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 	simulator_priv* priv = (simulator_priv*)device;
 
 	long long now = timeInMilliseconds();
-	double sec;
+	double sec = (now - priv->last_update) / 1000.;
+	priv->last_update = now;
+	priv->total_time += sec;
+
 	switch(type){
 	case OHMD_ROTATION_QUAT:
-		sec = (now - priv->last_hmd_rotation_update) / 1000.;
-		priv->last_hmd_rotation_update = now;
-		priv->total_hmd_rotation_time += sec;
 		if (priv->rotate_hmd)
-			oquatf_from_angles(0, 1, 0, sin(priv->total_hmd_rotation_time / 2.) * 10, (quatf*) out);
+			oquatf_from_angles(0, 1, 0, sin(priv->total_time / 2.) * 10, (quatf*) out);
 		break;
 
 	case OHMD_POSITION_VECTOR:
 		if(priv->id == 0){
 			// HMD
-			sec = (now - priv->last_hmd_pos_update) / 1000.;
-			priv->total_hmd_pos_time += sec;
-			priv->last_hmd_pos_update = now;
-
 			out[0] = 0;
 			out[1] = 0;
 			if (priv->move_hmd)
-				out[2] = sin(priv->total_hmd_pos_time / 4.) / 1.5;
+				out[2] = sin(priv->total_time / 4.) / 1.5;
 			else
 				out[2] = 0;
 		}
 		else if(priv->id == 1)
 		{
 			// Left Controller
-			sec = (now - priv->last_lcontroller_pos_update) / 1000.;
-			priv->last_lcontroller_pos_update = now;
-			priv->total_lcontroller_pos_time += sec;
-
 			if (priv->move_lcontroller)
-				out[0] = sin(priv->total_lcontroller_pos_time / 2.) / 2. - 0.25;
+				out[0] = sin(priv->total_time / 2.) / 2. - 0.25;
 			else
 				out[0] = -0.25;
 			//printf("%f %f \n", sec, priv->current_pos.z);
@@ -91,13 +75,9 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 		else
 		{
 			// Right Controller
-			sec = (now - priv->last_rcontroller_pos_update) / 1000.;
-			priv->last_rcontroller_pos_update = now;
-			priv->total_rcontroller_pos_time += sec;
-
 			out[0] = 0.25;
 			if (priv->move_rcontroller)
-				out[1] = sin(priv->total_rcontroller_pos_time / 2.) / 2.;
+				out[1] = sin(priv->total_time / 2.) / 2.;
 			else
 				out[1] = 0;
 			out[2] = -0.5;
@@ -165,9 +145,7 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	priv->base.close = close_device;
 	priv->base.getf = getf;
 
-	priv->last_hmd_pos_update = timeInMilliseconds();
-	priv->last_hmd_rotation_update = timeInMilliseconds();
-	priv->last_lcontroller_pos_update = timeInMilliseconds();
+	priv->last_update = timeInMilliseconds();
 
 	priv->move_hmd = true;
 	priv->rotate_hmd = true;
