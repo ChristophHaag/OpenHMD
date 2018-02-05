@@ -27,18 +27,14 @@ typedef struct {
 	bool move_lcontroller;
 	bool move_rcontroller;
 
-	vec3f current_hmd_pos;
 	long long last_hmd_pos_update;
 	double total_hmd_pos_time;
 	long long last_hmd_rotation_update;
 	double total_hmd_rotation_time;
 
-	vec3f current_lcontroller_pos;
 	long long last_lcontroller_pos_update;
 	double total_lcontroller_pos_time;
 
-
-	vec3f current_rcontroller_pos;
 	long long last_rcontroller_pos_update;
 	double total_rcontroller_pos_time;
 } simulator_priv;
@@ -69,42 +65,42 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 			sec = (now - priv->last_hmd_pos_update) / 1000.;
 			priv->total_hmd_pos_time += sec;
 			priv->last_hmd_pos_update = now;
+
+			out[0] = 0;
+			out[1] = 0;
 			if (priv->move_hmd)
-				priv->current_hmd_pos.z = sin(priv->total_hmd_pos_time / 2.) / 4. + 1;
-			//printf("%f %f \n", sec, priv->current_pos.z);
-			out[0] = priv->current_hmd_pos.x;
-			out[1] = priv->current_hmd_pos.y;
-			out[2] = priv->current_hmd_pos.z;
+				out[2] = sin(priv->total_hmd_pos_time / 2.) / 4. + 1;
+			else
+				out[2] = 0;
 		}
 		else if(priv->id == 1)
 		{
+			// Left Controller
 			sec = (now - priv->last_lcontroller_pos_update) / 1000.;
 			priv->last_lcontroller_pos_update = now;
 			priv->total_lcontroller_pos_time += sec;
 
-			if (priv->move_lcontroller) {
-				priv->current_lcontroller_pos.x = sin(priv->total_lcontroller_pos_time / 2.) / 2.;
-			}
+			if (priv->move_lcontroller)
+				out[0] = sin(priv->total_lcontroller_pos_time / 2.) / 2. - 0.25;
+			else
+				out[0] = -0.25;
 			//printf("%f %f \n", sec, priv->current_pos.z);
-
-			// Left Controller
-			out[0] = priv->current_lcontroller_pos.x - 0.5;
-			out[1] = priv->current_lcontroller_pos.y;
-			out[2] = priv->current_lcontroller_pos.z;
+			out[1] = 0;
+			out[2] = 0;
 		}
 		else
 		{
+			// Right Controller
 			sec = (now - priv->last_rcontroller_pos_update) / 1000.;
 			priv->last_rcontroller_pos_update = now;
 			priv->total_rcontroller_pos_time += sec;
 
-			if (priv->move_rcontroller) {
-				priv->current_rcontroller_pos.y = sin(priv->total_rcontroller_pos_time / 2.) / 2.;
-			}
-			// Right Controller
-			out[0] = priv->current_rcontroller_pos.x + 0.5;
-			out[1] = priv->current_rcontroller_pos.y;
-			out[2] = priv->current_rcontroller_pos.z;
+			out[0] = 0.25;
+			if (priv->move_rcontroller)
+				out[1] = sin(priv->total_rcontroller_pos_time / 2.) / 2.;
+			else
+				out[1] = 0;
+			out[2] = 0;
 		}
 		break;
 
@@ -169,18 +165,8 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	priv->base.close = close_device;
 	priv->base.getf = getf;
 
-
-	//priv->current_quat.z = 1;
-	priv->current_hmd_pos.x = 0;
-	priv->current_hmd_pos.y = 0;
-	priv->current_hmd_pos.z = 0.5;
 	priv->last_hmd_pos_update = timeInMilliseconds();
 	priv->last_hmd_rotation_update = timeInMilliseconds();
-
-
-	priv->current_lcontroller_pos.x = -0.5;
-	priv->current_lcontroller_pos.y = 0;
-	priv->current_lcontroller_pos.z = 0;
 	priv->last_lcontroller_pos_update = timeInMilliseconds();
 
 	priv->move_hmd = true;
