@@ -67,6 +67,25 @@ These can be enabled or disabled adding -DDRIVER_OF_CHOICE=ON after the cmake co
     cmake .
     make
 
+Cross compiling to windows:
+
+Clone hidapi in a directory *next to* OpenHMD in a directory e.g. BUILDROOT=$HOME/build so you end up with $BUILDROOT/OpenHMD, $BUILDROOT/hidapi
+
+```
+cd $BUILDROOT/hidapi
+git am -3 ../OpenHMD/0001-fix-up-mingw-makefile-to-work-on-linux-mingw.patch
+cd windows
+CC=/usr/bin/x86_64-w64-mingw32-gcc CXX=/usr/bin/x86_64-w64-mingw32-g++ make -f Makefile.mingw
+```
+
+Then compile OpenHMD:
+
+```
+cd $BUILDROOT/OpenHMD
+WINEPREFIX=~/.wine64 WINEARCH=win64 PKG_CONFIG_PATH="$PWD/mingw-pkgconfig" meson --cross-file build-win64.txt build
+ninja -C build
+```
+
 ### Configuring udev on Linux
 To avoid having to run your applications as root to access USB devices you have to add a udev rule (this will be included in .deb packages, etc).
 
