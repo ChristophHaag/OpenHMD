@@ -64,6 +64,15 @@ if _drivers.contains('vive')
 	deps += dep_hidapi
 endif
 
+if _drivers.contains('osvr')
+	sources += [
+		'src/drv_osvr_hdk/osvr.c',
+		'src/drv_osvr_hdk/packet.c',
+	]
+	c_args += '-DDRIVER_OSVR_HDK'
+	deps += dep_hidapi
+endif
+
 if _drivers.contains('nolo')
 	sources += [
 		'src/drv_nolo/nolo.c',
