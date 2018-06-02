@@ -37,7 +37,7 @@ void init_gl(gl_ctx* ctx, int w, int h)
 			SDL_WINDOWPOS_UNDEFINED,
 			w, h, SDL_WINDOW_OPENGL );
 	if(ctx->window == NULL) {
-		printf("SDL_CreateWindow failed\n");
+		printf("SDL_CreateWindow failed: %s\n", SDL_GetError());
 		exit(-1);
 	}
 	ctx->w = w;
@@ -46,7 +46,7 @@ void init_gl(gl_ctx* ctx, int w, int h)
 
 	ctx->glcontext = SDL_GL_CreateContext(ctx->window);
 	if(ctx->glcontext == NULL){
-		printf("SDL_GL_CreateContext\n");
+		printf("SDL_GL_CreateContext failed: %s\n", SDL_GetError());
 		exit(-1);
 	}
 

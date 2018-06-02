@@ -129,6 +129,12 @@ int OHMD_APIENTRY ohmd_gets(ohmd_string_description type, const char ** out)
 	case OHMD_GLSL_330_DISTORTION_FRAG_SRC:
 		*out = distortion_frag_330;
 		return OHMD_S_OK;
+	case OHMD_GLSL_DISTORTION_VERT2_SRC:
+		*out = distortion_vert2;
+		return OHMD_S_OK;
+	case OHMD_GLSL_DISTORTION_FRAG2_SRC:
+		*out = distortion_frag2;
+		return OHMD_S_OK;
 	default:
 		return OHMD_S_UNSUPPORTED;
 	}
