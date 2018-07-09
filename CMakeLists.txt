@@ -120,11 +120,20 @@ if(OPENHMD_DRIVER_NOLO)
 endif(OPENHMD_DRIVER_NOLO)
 
 if (OPENHMD_DRIVER_SIMULATOR)
+	find_package(PkgConfig REQUIRED)
+	pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+
+	include_directories(${GTK3_INCLUDE_DIRS})
+	link_directories(${GTK3_LIBRARY_DIRS})
+
+	add_definitions(${GTK3_CFLAGS_OTHER})
+	link_libraries(${GTK3_LIBRARIES})
+
 	set(openhmd_source_files ${openhmd_source_files}
 	${CMAKE_CURRENT_LIST_DIR}/src/drv_simulator/simulator.c
 	)
 	add_definitions(-DDRIVER_SIMULATOR)
-endif(OPENHMD_DRIVER_EXTERNAL)
+endif(OPENHMD_DRIVER_SIMULATOR)
 
 if (OPENHMD_DRIVER_EXTERNAL)
 	set(openhmd_source_files ${openhmd_source_files}

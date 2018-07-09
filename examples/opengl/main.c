@@ -113,6 +113,24 @@ print_matrix(float m[])
 
 int main(int argc, char** argv)
 {
+	int hmddev = 0;
+	int lcontrollerdev = 1;
+	int rcontrollerdev = 2;
+	for (int i = 0; i < argc; i++) {
+		if (strcmp(argv[i], "-hmd") == 0 && i < argc - 1) {
+			hmddev = strtol(argv[i+1], NULL, 10);
+			printf("Using HMD device %d\n", hmddev);
+		}
+		if (strcmp(argv[i], "-lc") == 0 && i < argc - 1) {
+			lcontrollerdev = strtol(argv[i+1], NULL, 10);
+			printf("Using left controller device %d\n", lcontrollerdev);
+		}
+		if (strcmp(argv[i], "-rc") == 0 && i < argc - 1) {
+			rcontrollerdev = strtol(argv[i+1], NULL, 10);
+			printf("Using right controller device %d\n", rcontrollerdev);
+		}
+	}
+
 	int hmd_w, hmd_h;
 
 	ohmd_context* ctx = ohmd_ctx_create();
@@ -130,11 +148,21 @@ int main(int argc, char** argv)
 	int auto_update = 1;
 	ohmd_device_settings_seti(settings, OHMD_IDS_AUTOMATIC_UPDATE, &auto_update);
 
-	ohmd_device* hmd = ohmd_list_open_device_s(ctx, 0, settings);
+	ohmd_device* hmd = ohmd_list_open_device_s(ctx, hmddev, settings);
 	if(!hmd){
 		printf("failed to open device: %s\n", ohmd_ctx_get_error(ctx));
 		return 1;
 	}
+
+	printf("HMD:\n");
+	printf("\tproduct: %s\n", ohmd_list_gets(ctx, hmddev, OHMD_PRODUCT));
+
+	printf("Left controller:\n");
+	printf("\tproduct: %s\n", ohmd_list_gets(ctx, lcontrollerdev, OHMD_PRODUCT));
+
+	printf("Right controller:\n");
+	printf("\tproduct: %s\n", ohmd_list_gets(ctx, rcontrollerdev, OHMD_PRODUCT));
+
 	ohmd_device_geti(hmd, OHMD_SCREEN_HORIZONTAL_RESOLUTION, &hmd_w);
 	ohmd_device_geti(hmd, OHMD_SCREEN_VERTICAL_RESOLUTION, &hmd_h);
 	float ipd;
