@@ -20,19 +20,18 @@ long long timeInMilliseconds(void) {
 	return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
 }
 
-typedef struct simulator_device {
-	quatf rot;
-	vec3f pos;
-} simulator_device;
-
-typedef struct {
+typedef struct simulator_priv {
 	ohmd_device base;
 	int id;
-
-	simulator_device hmd;
-	simulator_device lc;
-	simulator_device rc;
 } simulator_priv;
+
+//TODO: not global
+quatf hmdrot;
+vec3f hmdpos;
+quatf lcrot;
+vec3f lcpos;
+quatf rcrot;
+vec3f rcpos;
 
 void destroy(GtkWidget* widget, gpointer data){
 	gtk_main_quit();
@@ -40,11 +39,14 @@ void destroy(GtkWidget* widget, gpointer data){
 
 void move(GtkRange *range, gpointer data){
 	float *val = data;
+	printf("move %p: %f\n", val, *val);
 	*val = gtk_range_get_value (range); // not entirely happy pointing directly to val in memory but ok
 }
 
 void addSlider(GtkWidget* box, GtkOrientation orientation, void* targetfunction, float* val) {
-	GtkWidget* slider = gtk_scale_new_with_range(orientation, -5, 5, 0.5);
+	int movemax = 10;
+	printf("Addslider %p\n", val);
+	GtkWidget* slider = gtk_scale_new_with_range(orientation, -movemax, movemax, 0.1);
 	gtk_range_set_value((GtkRange*) slider, 0);
 	g_signal_connect (slider, "value-changed", G_CALLBACK (targetfunction), val);
 	gtk_widget_show(slider);
@@ -62,15 +64,32 @@ void initgui(simulator_priv* priv) {
 		gtk_container_set_border_width(GTK_CONTAINER(window), 10);
 		gtk_window_set_title(GTK_WINDOW(window), "OpenHMD Simulator Controls");
 
-		GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+		GtkWidget* mainhbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
 
-		addSlider(vbox, GTK_ORIENTATION_HORIZONTAL, &move, &priv->hmd.pos.x);
-		addSlider(vbox, GTK_ORIENTATION_VERTICAL, &move, &priv->hmd.pos.y);
-		addSlider(vbox, GTK_ORIENTATION_VERTICAL, &move, &priv->hmd.pos.z);
+		GtkWidget* hmdbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+		addSlider(hmdbox, GTK_ORIENTATION_HORIZONTAL, &move, &hmdpos.x);
+		addSlider(hmdbox, GTK_ORIENTATION_VERTICAL, &move, &hmdpos.y);
+		addSlider(hmdbox, GTK_ORIENTATION_VERTICAL, &move, &hmdpos.z);
+
+		GtkWidget* lcbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcpos.x);
+		addSlider(lcbox, GTK_ORIENTATION_VERTICAL, &move, &lcpos.y);
+		addSlider(lcbox, GTK_ORIENTATION_VERTICAL, &move, &lcpos.z);
+
+		GtkWidget* rcbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcpos.x);
+		addSlider(rcbox, GTK_ORIENTATION_VERTICAL, &move, &rcpos.y);
+		addSlider(rcbox, GTK_ORIENTATION_VERTICAL, &move, &rcpos.z);
+
+		gtk_widget_set_size_request(hmdbox, 200, 1);
+		gtk_widget_set_size_request(lcbox, 200, 1);
+		gtk_widget_set_size_request(rcbox, 200, 1);
 
 
-
-		gtk_container_add(GTK_CONTAINER(window), vbox);
+		gtk_container_add(GTK_CONTAINER(mainhbox), hmdbox);
+		gtk_container_add(GTK_CONTAINER(mainhbox), lcbox);
+		gtk_container_add(GTK_CONTAINER(mainhbox), rcbox);
+		gtk_container_add(GTK_CONTAINER(window), mainhbox);
 		gtk_widget_show_all(window);
 		gtk_main();
 	}
@@ -94,23 +113,23 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 	case OHMD_POSITION_VECTOR:
 		if(priv->id == 0){
 			// HMD
-			out[0] = priv->hmd.pos.x;
-			out[1] = priv->hmd.pos.y;
-			out[2] = priv->hmd.pos.z;
+			out[0] = hmdpos.x;
+			out[1] = hmdpos.y;
+			out[2] = hmdpos.z;
 		}
 		else if(priv->id == 1)
 		{
 			// Left Controller
-			out[0] = priv->lc.pos.x;
-			out[1] = priv->lc.pos.y;
-			out[2] = priv->lc.pos.z;
+			out[0] = lcpos.x;
+			out[1] = lcpos.y;
+			out[2] = lcpos.z;
 		}
 		else
 		{
 			// Right Controller
-			out[0] = priv->rc.pos.x;
-			out[1] = priv->rc.pos.y;
-			out[2] = priv->rc.pos.z;
+			out[0] = rcpos.x;
+			out[1] = rcpos.y;
+			out[2] = rcpos.z;
 		}
 		break;
 
