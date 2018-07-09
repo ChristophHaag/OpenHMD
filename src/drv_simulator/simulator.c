@@ -20,60 +20,60 @@ long long timeInMilliseconds(void) {
 	return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
 }
 
+typedef struct simulator_device {
+	quatf rot;
+	vec3f pos;
+} simulator_device;
+
 typedef struct {
 	ohmd_device base;
 	int id;
 
-	quatf hmdrot;
-	vec3f hmdpos;
-
-	long long last_update;
-	double total_time;
+	simulator_device hmd;
+	simulator_device lc;
+	simulator_device rc;
 } simulator_priv;
 
 void destroy(GtkWidget* widget, gpointer data){
 	gtk_main_quit();
 }
 
-void movev(GtkRange *range, gpointer data){
-	simulator_priv* priv = data;
-	printf("Move v %f\n", gtk_range_get_value (range));
-	priv->hmdpos.y = gtk_range_get_value (range);
+void move(GtkRange *range, gpointer data){
+	float *val = data;
+	*val = gtk_range_get_value (range); // not entirely happy pointing directly to val in memory but ok
 }
 
-void moveh(GtkRange *range, gpointer data){
-	simulator_priv* priv = data;
-	printf("Move h %f\n", gtk_range_get_value (range));
-	priv->hmdpos.x = gtk_range_get_value (range);
+void addSlider(GtkWidget* box, GtkOrientation orientation, void* targetfunction, float* val) {
+	GtkWidget* slider = gtk_scale_new_with_range(orientation, -5, 5, 0.5);
+	gtk_range_set_value((GtkRange*) slider, 0);
+	g_signal_connect (slider, "value-changed", G_CALLBACK (targetfunction), val);
+	gtk_widget_show(slider);
+	gtk_box_pack_start(GTK_BOX(box), slider, TRUE, TRUE, 0);
 }
 
 void initgui(simulator_priv* priv) {
-	gtk_init(0, 0);
-	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_default_size(GTK_WINDOW(window), 600, 600);
+	g_usleep(100000); // wait 100ms before opening the gui. Prevents X freeze. Why?
+	while (true) { // reopen on close
+		gtk_init(0, 0);
+		GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+		gtk_window_set_default_size(GTK_WINDOW(window), 600, 600);
 
-	g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(destroy), NULL);
-	gtk_container_set_border_width(GTK_CONTAINER(window), 10);
-	gtk_window_set_title(GTK_WINDOW(window), "OpenHMD Simulator Controls");
+		g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(destroy), NULL);
+		gtk_container_set_border_width(GTK_CONTAINER(window), 10);
+		gtk_window_set_title(GTK_WINDOW(window), "OpenHMD Simulator Controls");
 
-	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+		GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 
-	GtkWidget* sliderv = gtk_scale_new_with_range(GTK_ORIENTATION_VERTICAL, -5, 5, 0.5);
-	gtk_range_set_value((GtkRange*) sliderv, 0);
-	g_signal_connect (sliderv, "value-changed", G_CALLBACK (movev), priv);
-	gtk_widget_show(sliderv);
+		addSlider(vbox, GTK_ORIENTATION_HORIZONTAL, &move, &priv->hmd.pos.x);
+		addSlider(vbox, GTK_ORIENTATION_VERTICAL, &move, &priv->hmd.pos.y);
+		addSlider(vbox, GTK_ORIENTATION_VERTICAL, &move, &priv->hmd.pos.z);
 
-	GtkWidget* sliderh = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, -5, 5, 0.5);
-	gtk_range_set_value((GtkRange*) sliderh, 0);
-	g_signal_connect (sliderh, "value-changed", G_CALLBACK (moveh), priv);
-	gtk_widget_show(sliderh);
 
-	gtk_box_pack_start(GTK_BOX(vbox), sliderh, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), sliderv, TRUE, TRUE, 0);
 
-	gtk_container_add(GTK_CONTAINER(window), vbox);
-	gtk_widget_show_all(window);
-	gtk_main();
+		gtk_container_add(GTK_CONTAINER(window), vbox);
+		gtk_widget_show_all(window);
+		gtk_main();
+	}
 }
 
 static void update_device(ohmd_device* device)
@@ -86,36 +86,31 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 	simulator_priv* priv = (simulator_priv*)device;
 
 	long long now = timeInMilliseconds();
-	double sec = (now - priv->last_update) / 1000.;
-	priv->last_update = now;
-	priv->total_time += sec;
 
 	switch(type){
 	case OHMD_ROTATION_QUAT:
-
 		break;
 
 	case OHMD_POSITION_VECTOR:
 		if(priv->id == 0){
 			// HMD
-			out[0] = priv->hmdpos.x;
-			out[1] = priv->hmdpos.y;
-			out[2] = priv->hmdpos.z;
+			out[0] = priv->hmd.pos.x;
+			out[1] = priv->hmd.pos.y;
+			out[2] = priv->hmd.pos.z;
 		}
 		else if(priv->id == 1)
 		{
 			// Left Controller
-			out[0] = -0.25;
-			//printf("%f %f \n", sec, priv->current_pos.z);
-			out[1] = 0;
-			out[2] = -0.5;
+			out[0] = priv->lc.pos.x;
+			out[1] = priv->lc.pos.y;
+			out[2] = priv->lc.pos.z;
 		}
 		else
 		{
 			// Right Controller
-			out[0] = 0.25;
-			out[1] = 0;
-			out[2] = -0.5;
+			out[0] = priv->rc.pos.x;
+			out[1] = priv->rc.pos.y;
+			out[2] = priv->rc.pos.z;
 		}
 		break;
 
@@ -180,18 +175,9 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	priv->base.close = close_device;
 	priv->base.getf = getf;
 
-	priv->last_update = timeInMilliseconds();
-
-	priv->hmdpos.x = 0;
-	priv->hmdpos.y = 0;
-	priv->hmdpos.z = 0;
-
-	priv->hmdrot.x = 0;
-	priv->hmdrot.y = 0;
-	priv->hmdrot.z = 0;
-	priv->hmdrot.w = 0;
-
-	ohmd_thread* guithread = ohmd_create_thread(driver->ctx, &initgui, priv);
+	if (priv->id == 0) { // only create one gui thread, open gets called for hmd and each controller
+		ohmd_thread* guithread = ohmd_create_thread(driver->ctx, (unsigned int (*)(void *))initgui, priv);
+	}
 
 	return (ohmd_device*)priv;
 }
