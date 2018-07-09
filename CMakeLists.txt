@@ -38,6 +38,7 @@ OPTION(OPENHMD_DRIVER_WMR "Windows Mixed Reality" ON)
 OPTION(OPENHMD_DRIVER_PSVR "Sony PSVR" ON)
 OPTION(OPENHMD_DRIVER_HTC_VIVE "HTC Vive" ON)
 OPTION(OPENHMD_DRIVER_NOLO "NOLO VR CV1" ON)
+OPTION(OPENHMD_DRIVER_SIMULATOR "Simualted device driver" ON)
 OPTION(OPENHMD_DRIVER_EXTERNAL "External sensor driver" ON)
 OPTION(OPENHMD_DRIVER_ANDROID "General Android driver" OFF)
 
@@ -117,6 +118,13 @@ if(OPENHMD_DRIVER_NOLO)
 	include_directories(${HIDAPI_INCLUDE_DIRS})
 	set(LIBS ${LIBS} ${HIDAPI_LIBRARIES})
 endif(OPENHMD_DRIVER_NOLO)
+
+if (OPENHMD_DRIVER_SIMULATOR)
+	set(openhmd_source_files ${openhmd_source_files}
+	${CMAKE_CURRENT_LIST_DIR}/src/drv_simulator/simulator.c
+	)
+	add_definitions(-DDRIVER_SIMULATOR)
+endif(OPENHMD_DRIVER_EXTERNAL)
 
 if (OPENHMD_DRIVER_EXTERNAL)
 	set(openhmd_source_files ${openhmd_source_files}
