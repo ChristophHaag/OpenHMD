@@ -64,6 +64,21 @@ void oquatf_init_axis(quatf* me, const vec3f* vec, float angle)
 	me->w = cosf(angle / 2.0f);
 }
 
+void oquatf_from_angles(double x, double y, double z, double degrees, quatf* out) {
+	double a = degrees*(3.14159f/180.0f);
+	// Here we calculate the sin( theta / 2) once for optimization
+	float factor = sinf( a / 2.0f );
+
+	// Calculate the x, y and z of the quaternion
+	out->x = x * factor;
+	out->y = y * factor;
+	out->z = z * factor;
+
+	// Calcualte the w value by cos( theta / 2 )
+	out->w = cosf( a / 2.0f );
+	oquatf_normalize_me(out);
+}
+
 void oquatf_get_rotated(const quatf* me, const vec3f* vec, vec3f* out_vec)
 {
 	quatf q = {{vec->x * me->w + vec->z * me->y - vec->y * me->z,
