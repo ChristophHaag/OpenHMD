@@ -39,13 +39,11 @@ void destroy(GtkWidget* widget, gpointer data){
 
 void move(GtkRange *range, gpointer data){
 	float *val = data;
-	printf("move %p: %f\n", val, *val);
 	*val = gtk_range_get_value (range); // not entirely happy pointing directly to val in memory but ok
 }
 
 void addSlider(GtkWidget* box, GtkOrientation orientation, void* targetfunction, float* val) {
 	int movemax = 10;
-	printf("Addslider %p\n", val);
 	GtkWidget* slider = gtk_scale_new_with_range(orientation, -movemax, movemax, 0.1);
 	gtk_range_set_value((GtkRange*) slider, 0);
 	g_signal_connect (slider, "value-changed", G_CALLBACK (targetfunction), val);
@@ -108,6 +106,10 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 
 	switch(type){
 	case OHMD_ROTATION_QUAT:
+		out[0] = 0;
+		out[1] = 0;
+		out[2] = 0;
+		out[3] = 1;
 		break;
 
 	case OHMD_POSITION_VECTOR:
