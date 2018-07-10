@@ -32,6 +32,16 @@ quatf lcrot;
 vec3f lcpos;
 quatf rcrot;
 vec3f rcpos;
+float hmdyaw = 0;
+float hmdpitch = 0;
+float hmdroll = 0;
+float lcyaw = 0;
+float lcpitch = 0;
+float lcroll = 0;
+float rcyaw = 0;
+float rcpitch = 0;
+float rcroll = 0;
+
 
 void destroy(GtkWidget* widget, gpointer data){
 	gtk_main_quit();
@@ -42,10 +52,9 @@ void move(GtkRange *range, gpointer data){
 	*val = gtk_range_get_value (range); // not entirely happy pointing directly to val in memory but ok
 }
 
-void addSlider(GtkWidget* box, GtkOrientation orientation, void* targetfunction, float* val) {
-	int movemax = 10;
-	GtkWidget* slider = gtk_scale_new_with_range(orientation, -movemax, movemax, 0.1);
-	gtk_range_set_value((GtkRange*) slider, 0);
+void addSlider(GtkWidget* box, GtkOrientation orientation, void* targetfunction, float* val, int max) {
+	GtkWidget* slider = gtk_scale_new_with_range(orientation, -max, max, 0.1);
+	gtk_range_set_value((GtkRange*) slider, *val); // set slider to value the variable initially has
 	g_signal_connect (slider, "value-changed", G_CALLBACK (targetfunction), val);
 	gtk_widget_show(slider);
 	gtk_box_pack_start(GTK_BOX(box), slider, TRUE, TRUE, 0);
@@ -65,28 +74,37 @@ void initgui(simulator_priv* priv) {
 		GtkWidget* mainhbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
 
 		GtkWidget* hmdbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-		addSlider(hmdbox, GTK_ORIENTATION_HORIZONTAL, &move, &hmdpos.x);
-		addSlider(hmdbox, GTK_ORIENTATION_VERTICAL, &move, &hmdpos.y);
-		addSlider(hmdbox, GTK_ORIENTATION_VERTICAL, &move, &hmdpos.z);
+		addSlider(hmdbox, GTK_ORIENTATION_HORIZONTAL, &move, &hmdpos.x, 10);
+		addSlider(hmdbox, GTK_ORIENTATION_VERTICAL, &move, &hmdpos.y, 10);
+		addSlider(hmdbox, GTK_ORIENTATION_VERTICAL, &move, &hmdpos.z, 10);
+		addSlider(hmdbox, GTK_ORIENTATION_HORIZONTAL, &move, &hmdpitch, 360);
+		addSlider(hmdbox, GTK_ORIENTATION_HORIZONTAL, &move, &hmdyaw, 360);
+		addSlider(hmdbox, GTK_ORIENTATION_HORIZONTAL, &move, &hmdroll, 360);
+		gtk_container_add(GTK_CONTAINER(mainhbox), hmdbox);
 
 		GtkWidget* lcbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcpos.x);
-		addSlider(lcbox, GTK_ORIENTATION_VERTICAL, &move, &lcpos.y);
-		addSlider(lcbox, GTK_ORIENTATION_VERTICAL, &move, &lcpos.z);
+		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcpos.x, 10);
+		addSlider(lcbox, GTK_ORIENTATION_VERTICAL, &move, &lcpos.y, 10);
+		addSlider(lcbox, GTK_ORIENTATION_VERTICAL, &move, &lcpos.z, 10);
+		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcpitch, 360);
+		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcyaw, 360);
+		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcroll, 360);
+		gtk_container_add(GTK_CONTAINER(mainhbox), lcbox);
 
 		GtkWidget* rcbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcpos.x);
-		addSlider(rcbox, GTK_ORIENTATION_VERTICAL, &move, &rcpos.y);
-		addSlider(rcbox, GTK_ORIENTATION_VERTICAL, &move, &rcpos.z);
+		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcpos.x, 10);
+		addSlider(rcbox, GTK_ORIENTATION_VERTICAL, &move, &rcpos.y, 10);
+		addSlider(rcbox, GTK_ORIENTATION_VERTICAL, &move, &rcpos.z, 10);
+		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcpitch, 360);
+		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcyaw, 360);
+		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcroll, 360);
+		gtk_container_add(GTK_CONTAINER(mainhbox), rcbox);
 
 		gtk_widget_set_size_request(hmdbox, 200, 1);
 		gtk_widget_set_size_request(lcbox, 200, 1);
 		gtk_widget_set_size_request(rcbox, 200, 1);
 
 
-		gtk_container_add(GTK_CONTAINER(mainhbox), hmdbox);
-		gtk_container_add(GTK_CONTAINER(mainhbox), lcbox);
-		gtk_container_add(GTK_CONTAINER(mainhbox), rcbox);
 		gtk_container_add(GTK_CONTAINER(window), mainhbox);
 		gtk_widget_show_all(window);
 		gtk_main();
@@ -98,6 +116,7 @@ static void update_device(ohmd_device* device)
 	simulator_priv* priv = (simulator_priv*)device;
 }
 
+int i = 0;
 static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 {
 	simulator_priv* priv = (simulator_priv*)device;
@@ -106,10 +125,45 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 
 	switch(type){
 	case OHMD_ROTATION_QUAT:
-		out[0] = 0;
-		out[1] = 0;
-		out[2] = 0;
-		out[3] = 1;
+		// mind the order of rotation operations
+		if (priv->id == 0) {
+			//quatf yawq;
+			quatf pitchq;
+			quatf rollq;
+			oquatf_from_angles(0, 1, 0, hmdyaw, (quatf*)out);
+			oquatf_from_angles(1, 0, 0, hmdpitch, &pitchq);
+			oquatf_from_angles(0, 0, 1, hmdroll, &rollq);
+
+			oquatf_mult_me((quatf*) out, &pitchq);
+			oquatf_mult_me((quatf*) out, &rollq);
+			//oquatf_mult_me((quatf*) out, &yawq);
+
+		} else if (priv->id == 1) {
+			//quatf yawq;
+			quatf pitchq;
+			quatf rollq;
+			oquatf_from_angles(0, 1, 0, lcyaw, (quatf*) out);
+			oquatf_from_angles(1, 0, 0, lcpitch, &pitchq);
+			oquatf_from_angles(0, 0, 1, lcroll, &rollq);
+
+			oquatf_mult_me((quatf*) out, &pitchq);
+			oquatf_mult_me((quatf*) out, &rollq);
+		} else if (priv->id == 2) {
+			//quatf yawq;
+			quatf pitchq;
+			quatf rollq;
+			oquatf_from_angles(0, 1, 0, rcyaw, (quatf*)out);
+			oquatf_from_angles(0, 0, 1, rcroll, &rollq);
+			oquatf_from_angles(1, 0, 0, rcpitch, &pitchq);
+
+			oquatf_mult_me((quatf*) out, &pitchq);
+			oquatf_mult_me((quatf*) out, &rollq);
+		} else {
+			out[0] = 0;
+			out[1] = 0;
+			out[2] = 0;
+			out[3] = 1;
+		}
 		break;
 
 	case OHMD_POSITION_VECTOR:
@@ -195,6 +249,11 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	priv->base.update = update_device;
 	priv->base.close = close_device;
 	priv->base.getf = getf;
+
+	lcpos.x = -0.5;
+	lcpos.z = -0.5;
+	rcpos.x = 0.5;
+	rcpos.z = -0.5;
 
 	if (priv->id == 0) { // only create one gui thread, open gets called for hmd and each controller
 		ohmd_thread* guithread = ohmd_create_thread(driver->ctx, (unsigned int (*)(void *))initgui, priv);
