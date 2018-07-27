@@ -42,6 +42,8 @@ OPTION(OPENHMD_DRIVER_SIMULATOR "Simualted device driver" ON)
 OPTION(OPENHMD_DRIVER_EXTERNAL "External sensor driver" ON)
 OPTION(OPENHMD_DRIVER_ANDROID "General Android driver" OFF)
 
+OPTION(OPENHMD_SIMPLE_COMPOSITOR "Simple compositor" ON)
+
 OPTION(OPENHMD_EXAMPLE_SIMPLE "Simple test binary" ON)
 OPTION(OPENHMD_EXAMPLE_SDL "SDL OpenGL test (outdated)" OFF)
 
@@ -165,6 +167,18 @@ if (UNIX)
 endif (UNIX)
 
 link_libraries(${LIBS})
+
+if (OPENHMD_SIMPLE_COMPOSITOR)
+	find_package(OpenGL REQUIRED)
+
+
+	add_library(openhmd-compositor SHARED ${CMAKE_CURRENT_LIST_DIR}/src/simpleCompositor.c)
+	SET_TARGET_PROPERTIES(openhmd-compositor PROPERTIES OUTPUT_NAME openhmd CLEAN_DIRECT_OUTPUT 1)
+	target_link_libraries(openhmd-compositor ${OPENGL_LIBRARIES} openhmd-shared)
+	add_executable(openhmd-compositor-test ${CMAKE_CURRENT_LIST_DIR}/src/simpleCompositorTest.c)
+	target_link_libraries(openhmd-compositor-test openhmd-compositor)
+endif (OPENHMD_SIMPLE_COMPOSITOR)
+
 add_library(openhmd-shared SHARED ${openhmd_source_files})
 SET_TARGET_PROPERTIES(openhmd-shared PROPERTIES OUTPUT_NAME openhmd CLEAN_DIRECT_OUTPUT 1 VERSION ${LIB_VERSION_STRING} SOVERSION ${LIB_VERSION_MAJOR})
 add_library(openhmd-static STATIC ${openhmd_source_files})
