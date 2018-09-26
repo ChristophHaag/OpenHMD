@@ -42,6 +42,7 @@ float rcyaw = 0;
 float rcpitch = 0;
 float rcroll = 0;
 
+volatile bool gui_thread_started = false;
 
 void destroy(GtkWidget* widget, gpointer data){
 	gtk_main_quit();
@@ -255,8 +256,28 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	rcpos.x = 0.5;
 	rcpos.z = -0.5;
 
-	if (priv->id == 0) { // only create one gui thread, open gets called for hmd and each controller
+	if (!gui_thread_started) { // only create one gui thread, open gets called for hmd and each controller
 		ohmd_thread* guithread = ohmd_create_thread(driver->ctx, (unsigned int (*)(void *))initgui, priv);
+		gui_thread_started = true;
+	} else if (priv->id == 1 || priv->id == 2) {
+		// both controllers have the same layout
+		priv->base.properties.control_count = 8;
+		priv->base.properties.controls_hints[0] = OHMD_ANALOG_PRESS;
+		priv->base.properties.controls_hints[1] = OHMD_TRIGGER_CLICK;
+		priv->base.properties.controls_hints[2] = OHMD_MENU;
+		priv->base.properties.controls_hints[3] = OHMD_HOME;
+		priv->base.properties.controls_hints[4] = OHMD_SQUEEZE;
+		priv->base.properties.controls_hints[5] = OHMD_GENERIC; //touching the XY pad
+		priv->base.properties.controls_hints[6] = OHMD_ANALOG_X;
+		priv->base.properties.controls_hints[7] = OHMD_ANALOG_Y;
+		priv->base.properties.controls_types[0] = OHMD_DIGITAL;
+		priv->base.properties.controls_types[1] = OHMD_DIGITAL;
+		priv->base.properties.controls_types[2] = OHMD_DIGITAL;
+		priv->base.properties.controls_types[3] = OHMD_DIGITAL;
+		priv->base.properties.controls_types[4] = OHMD_DIGITAL;
+		priv->base.properties.controls_types[5] = OHMD_DIGITAL;
+		priv->base.properties.controls_types[6] = OHMD_ANALOG;
+		priv->base.properties.controls_types[7] = OHMD_ANALOG;
 	}
 
 	return (ohmd_device*)priv;
