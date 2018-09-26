@@ -41,7 +41,9 @@ float lcroll = 0;
 float rcyaw = 0;
 float rcpitch = 0;
 float rcroll = 0;
-
+#define CONTROLLER_VALUES 8
+float lcontroller_values[CONTROLLER_VALUES] = { 0 };
+float rcontroller_values[CONTROLLER_VALUES] = { 0 };
 volatile bool gui_thread_started = false;
 
 void destroy(GtkWidget* widget, gpointer data){
@@ -59,6 +61,23 @@ void addSlider(GtkWidget* box, GtkOrientation orientation, void* targetfunction,
 	g_signal_connect (slider, "value-changed", G_CALLBACK (targetfunction), val);
 	gtk_widget_show(slider);
 	gtk_box_pack_start(GTK_BOX(box), slider, TRUE, TRUE, 0);
+}
+
+void press(GtkButton *btn, GdkEventButton *event, gpointer data){
+	float *val = data;
+	*val = 1;
+}
+void unpress(GtkButton *btn, GdkEventButton *event, gpointer data){
+	float *val = data;
+	*val = 0;
+}
+
+void addButton(GtkWidget* box, float* val, char* label) {
+	GtkWidget* button = gtk_button_new_with_label(label);
+	g_signal_connect (button, "button-press-event", G_CALLBACK (press), val);
+	g_signal_connect (button, "button-release-event", G_CALLBACK (unpress), val);
+	gtk_widget_show(button);
+	gtk_box_pack_start(GTK_BOX(box), button, TRUE, TRUE, 0);
 }
 
 void initgui(simulator_priv* priv) {
@@ -90,6 +109,11 @@ void initgui(simulator_priv* priv) {
 		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcpitch, 360);
 		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcyaw, 360);
 		addSlider(lcbox, GTK_ORIENTATION_HORIZONTAL, &move, &lcroll, 360);
+		for (int i = 0; i < CONTROLLER_VALUES; i++) {
+			char label[256];
+			snprintf(label, 256, "button %d", i);
+			addButton(lcbox, &lcontroller_values[i], label);
+		}
 		gtk_container_add(GTK_CONTAINER(mainhbox), lcbox);
 
 		GtkWidget* rcbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
@@ -99,6 +123,11 @@ void initgui(simulator_priv* priv) {
 		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcpitch, 360);
 		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcyaw, 360);
 		addSlider(rcbox, GTK_ORIENTATION_HORIZONTAL, &move, &rcroll, 360);
+		for (int i = 0; i < CONTROLLER_VALUES; i++) {
+			char label[256];
+			snprintf(label, 256, "button %d", i);
+			addButton(rcbox, &rcontroller_values[i], label);
+		}
 		gtk_container_add(GTK_CONTAINER(mainhbox), rcbox);
 
 		gtk_widget_set_size_request(hmdbox, 200, 1);
@@ -196,8 +225,12 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 		break;
 	
 	case OHMD_CONTROLS_STATE:
-		out[0] = .1f;
-		out[1] = 1.0f;
+		if(priv->id == 1) {
+			memcpy(out, lcontroller_values, CONTROLLER_VALUES * sizeof(float));
+			//printf("out %f\n", out[0]);
+		} else if (priv->id == 2) {
+			memcpy(out, rcontroller_values, CONTROLLER_VALUES * sizeof(float));
+		}
 		break;
 
 	default:
@@ -235,13 +268,6 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	priv->base.properties.lens_vpos = 0.046800f;
 	priv->base.properties.fov = DEG_TO_RAD(125.5144f);
 	priv->base.properties.ratio = (1280.0f / 800.0f) / 2.0f;
-	
-	// Some buttons and axes
-	priv->base.properties.control_count = 2;
-	priv->base.properties.controls_hints[0] = OHMD_BUTTON_A;
-	priv->base.properties.controls_hints[1] = OHMD_MENU;
-	priv->base.properties.controls_types[0] = OHMD_ANALOG;
-	priv->base.properties.controls_types[1] = OHMD_DIGITAL;
 
 	// calculate projection eye projection matrices from the device properties
 	ohmd_calc_default_proj_matrices(&priv->base.properties);
@@ -259,8 +285,10 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	if (!gui_thread_started) { // only create one gui thread, open gets called for hmd and each controller
 		ohmd_thread* guithread = ohmd_create_thread(driver->ctx, (unsigned int (*)(void *))initgui, priv);
 		gui_thread_started = true;
-	} else if (priv->id == 1 || priv->id == 2) {
+	}
+	if (priv->id == 1 || priv->id == 2) {
 		// both controllers have the same layout
+		printf("asdf\n");
 		priv->base.properties.control_count = 8;
 		priv->base.properties.controls_hints[0] = OHMD_ANALOG_PRESS;
 		priv->base.properties.controls_hints[1] = OHMD_TRIGGER_CLICK;
@@ -300,7 +328,8 @@ static void get_device_list(ohmd_driver* driver, ohmd_device_list* list)
 
 	desc->driver_ptr = driver;
 
-	desc->device_flags = OHMD_DEVICE_FLAGS_NULL_DEVICE | OHMD_DEVICE_FLAGS_ROTATIONAL_TRACKING;
+	desc->device_flags = OHMD_DEVICE_FLAGS_POSITIONAL_TRACKING |
+		OHMD_DEVICE_FLAGS_ROTATIONAL_TRACKING;
 	desc->device_class = OHMD_DEVICE_CLASS_HMD;
 
 	desc->id = id++;
@@ -317,8 +346,7 @@ static void get_device_list(ohmd_driver* driver, ohmd_device_list* list)
 
 	desc->driver_ptr = driver;
 
-	desc->device_flags = OHMD_DEVICE_FLAGS_NULL_DEVICE | 
-		OHMD_DEVICE_FLAGS_POSITIONAL_TRACKING | 
+	desc->device_flags =  OHMD_DEVICE_FLAGS_POSITIONAL_TRACKING | 
 		OHMD_DEVICE_FLAGS_ROTATIONAL_TRACKING | 
 		OHMD_DEVICE_FLAGS_LEFT_CONTROLLER;
 
@@ -338,8 +366,7 @@ static void get_device_list(ohmd_driver* driver, ohmd_device_list* list)
 
 	desc->driver_ptr = driver;
 
-	desc->device_flags = OHMD_DEVICE_FLAGS_NULL_DEVICE | 
-		OHMD_DEVICE_FLAGS_POSITIONAL_TRACKING | 
+	desc->device_flags = OHMD_DEVICE_FLAGS_POSITIONAL_TRACKING | 
 		OHMD_DEVICE_FLAGS_ROTATIONAL_TRACKING | 
 		OHMD_DEVICE_FLAGS_RIGHT_CONTROLLER;
 

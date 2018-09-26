@@ -180,9 +180,9 @@ int main(int argc, char** argv)
 				{
 					printf("%f ", control_state[i]);
 				}
+				puts("");
 			}
 		}
-		//puts("");
 			
 		ohmd_sleep(.01);
 	}
