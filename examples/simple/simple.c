@@ -10,6 +10,8 @@
 #include <openhmd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 
 void ohmd_sleep(double);
 
@@ -37,11 +39,6 @@ void print_infoi(ohmd_device* hmd, const char* name, int len, ohmd_int_value val
 
 int main(int argc, char** argv)
 {
-	int device_idx = 0;
-
-	if(argc > 1)
-		device_idx = atoi(argv[1]);
-
 	ohmd_context* ctx = ohmd_ctx_create();
 
 	// Probe for devices
@@ -74,6 +71,27 @@ int main(int argc, char** argv)
 		printf("    right controller:    %s\n\n", device_flags & OHMD_DEVICE_FLAGS_RIGHT_CONTROLLER ? "yes" : "no");
 	}
 
+	int device_idx = 0;
+	bool showbuttons = false;
+	bool showpose = false;
+	for (int i = 0; i < argc; i++) {
+		if (strcmp(argv[i], "-device") == 0 && i < argc - 1) {
+			device_idx = strtol(argv[i+1], NULL, 10);
+			//printf("Using device %d\n", device_idx);
+			i++;
+		} else if (strcmp(argv[i], "-buttons") == 0) {
+			showbuttons = true;
+		} else if (strcmp(argv[i], "-pose") == 0) {
+			showpose = true;
+		} else if (i > 0) {
+			printf("Usage:\n"
+			"    [-device <int>]   OpenHMD device index\n"
+			"    [-buttons]        Print button presses\n"
+			"    [-pose]           Print poses\n");
+			return 1;
+		}
+	}
+	
 	// Open specified device idx or 0 (default) if nothing specified
 	printf("opening device: %d\n", device_idx);
 	ohmd_device* hmd = ohmd_list_open_device(ctx, device_idx);
@@ -135,22 +153,26 @@ int main(int argc, char** argv)
 		//ohmd_device_setf(hmd, OHMD_ROTATION_QUAT, zero);
 		//ohmd_device_setf(hmd, OHMD_POSITION_VECTOR, zero);
 
-		// get rotation and postition
-		print_infof(hmd, "rotation quat:", 4, OHMD_ROTATION_QUAT);
-		print_infof(hmd, "position vec: ", 3, OHMD_POSITION_VECTOR);
+		if (showpose) {
+			// get rotation and postition
+			print_infof(hmd, "rotation quat:", 4, OHMD_ROTATION_QUAT);
+			print_infof(hmd, "position vec: ", 3, OHMD_POSITION_VECTOR);
+		}
+		
+		if (showbuttons) {
+			// read controls
+			if (device_class & OHMD_DEVICE_CLASS_CONTROLLER) {
+				float control_state[256];
+				ohmd_device_getf(hmd, OHMD_CONTROLS_STATE, control_state);
 
-		// read controls
-		if (device_class & OHMD_DEVICE_CLASS_CONTROLLER) {
-			float control_state[256];
-			ohmd_device_getf(hmd, OHMD_CONTROLS_STATE, control_state);
-
-			printf("%-25s", "controls state:");
-			for(int i = 0; i < control_count; i++)
-			{
-				printf("%f ", control_state[i]);
+				printf("%-25s", "controls state:");
+				for(int i = 0; i < control_count; i++)
+				{
+					printf("%f ", control_state[i]);
+				}
 			}
 		}
-		puts("");
+		//puts("");
 			
 		ohmd_sleep(.01);
 	}
