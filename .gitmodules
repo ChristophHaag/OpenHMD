@@ -1,0 +1,3 @@
+[submodule "subprojects/libsurvive"]
+	path = subprojects/libsurvive
+	url = https://github.com/cnlohr/libsurvive.git

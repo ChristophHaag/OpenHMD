@@ -29,7 +29,8 @@ option(OPENHMD_DRIVER_OCULUS_RIFT "Oculus Rift DK1 and DK2" ON)
 option(OPENHMD_DRIVER_DEEPOON "Deepoon E2" ON)
 option(OPENHMD_DRIVER_WMR "Windows Mixed Reality" ON)
 option(OPENHMD_DRIVER_PSVR "Sony PSVR" ON)
-option(OPENHMD_DRIVER_HTC_VIVE "HTC Vive" ON)
+option(OPENHMD_DRIVER_HTC_VIVE_SURVIVE "HTC Vive Libsurvive" ON)
+option(OPENHMD_DRIVER_HTC_VIVE "HTC Vive" OFF)
 option(OPENHMD_DRIVER_NOLO "NOLO VR CV1" ON)
 option(OPENHMD_DRIVER_XGVR "3Glasses HMD" ON)
 option(OPENHMD_DRIVER_EXTERNAL "External sensor driver" ON)
@@ -85,6 +86,13 @@ if(OPENHMD_DRIVER_PSVR)
 	include_directories(${HIDAPI_INCLUDE_DIRS})
 	set(LIBS ${LIBS} ${HIDAPI_LIBRARIES})
 endif(OPENHMD_DRIVER_PSVR)
+
+if(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
+	set(openhmd_source_files ${openhmd_source_files}
+	${CMAKE_CURRENT_LIST_DIR}/src/drv_htc_vive_survive/vive.c
+	)
+	add_definitions(-DDRIVER_HTC_VIVE)
+endif(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
 
 if(OPENHMD_DRIVER_HTC_VIVE)
 	set(openhmd_source_files ${openhmd_source_files}
@@ -168,13 +176,21 @@ if (BUILD_BOTH_STATIC_SHARED_LIBS)
 
 else ()
 
-	# Static or Shared
-	add_library(openhmd ${openhmd_source_files})
+	add_subdirectory(subprojects/libsurvive)
 
-	export(TARGETS openhmd FILE openhmd-config.cmake)
+	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/subprojects/libsurvive/include)
+	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/subprojects/libsurvive/redist)
+
+	# Static or Shared
+	add_library(openhmd SHARED ${openhmd_source_files})
+
+	#TODO: export(TARGETS openhmd FILE openhmd-config.cmake)
 
 	set(TARGETS "openhmd")
 
+	if(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
+		target_link_libraries(openhmd survive)
+	endif(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
 endif ()
 
 foreach(target ${TARGETS})
