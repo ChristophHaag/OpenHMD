@@ -12,64 +12,31 @@
 #include <assert.h>
 #include <math.h>
 #include "gl.h"
+#define MATH_3D_IMPLEMENTATION
+#include "math_3d.h"
 
+#define degreesToRadians(angleDegrees) ((angleDegrees) * M_PI / 180.0)
+#define radiansToDegrees(angleRadians) ((angleRadians) * 180.0 / M_PI)
 
-#define OVERSAMPLE_SCALE 2.0
+#define OVERSAMPLE_SCALE 12.0
 
-char* read_file(const char* filename)
+void GLAPIENTRY
+MessageCallback( GLenum source,
+                 GLenum type,
+                 GLuint id,
+                 GLenum severity,
+                 GLsizei length,
+                 const GLchar* message,
+                 const void* userParam )
 {
-	FILE* f = fopen(filename, "rb");
-	fseek(f, 0, SEEK_END);
-	long len = ftell(f);
-	fseek(f, 0, SEEK_SET);
-
-	char* buffer = calloc(1, len + 1);
-	assert(buffer);
-
-	size_t ret = fread(buffer, len, 1, f);
-	assert(ret);
-
-	fclose(f);
-
-	return buffer;
+  fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+            type, severity, message );
 }
 
 float randf()
 {
 	return (float)rand() / (float)RAND_MAX;
-}
-
-GLuint gen_cubes()
-{
-	GLuint list = glGenLists(1);
-
-	// Set the random seed.
-	srand(42);
-
-	glNewList(list, GL_COMPILE);
-
-	for(float a = 0.0f; a < 360.0f; a += 20.0f){
-		glPushMatrix();
-
-		glRotatef(a, 0, 1, 0);
-		glTranslatef(0, 0, -1);
-		glScalef(0.2, 0.2, 0.2);
-		glRotatef(randf() * 360, randf(), randf(), randf());
-
-		glColor4f(randf(), randf(), randf(), randf() * .5f + .5f);
-		draw_cube();
-
-		glPopMatrix();
-	}
-
-	// draw floor
-	glColor4f(0, 1.0f, .25f, .25f);
-	glTranslatef(0, -2.5f, 0);
-	draw_cube();
-
-	glEndList();
-
-	return list;
 }
 
 void draw_crosshairs(float len, float cx, float cy)
@@ -93,11 +60,6 @@ void draw_crosshairs(float len, float cx, float cy)
 	glPopMatrix();
 }
 
-void draw_scene(GLuint list)
-{
-	// draw cubes
-	glCallList(list);
-}
 static inline void
 print_matrix(float m[])
 {
@@ -109,6 +71,33 @@ print_matrix(float m[])
             m[1], m[5], m[9], m[13],
             m[2], m[6], m[10], m[14],
             m[3], m[7], m[11], m[15]);
+}
+
+mat4_t cube_modelmatrix[18];
+vec3_t cube_colors[18];
+
+void gen__cubes()
+{
+	GLuint list = glGenLists(1);
+
+	// Set the random seed.
+	srand(42);
+
+	glNewList(list, GL_COMPILE);
+
+	for(int i = 0; i < 18; i ++) {
+		cube_modelmatrix[i] = m4_identity();
+		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_rotation(i * 20, vec3(0, 1, 0)));
+		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_translation(vec3(0, 0, -1)));
+		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_rotation(degreesToRadians(randf() * 360), vec3(randf(), randf(), randf())));
+
+		cube_colors[i] = vec3(randf(), randf(), randf());
+	}
+}
+
+void draw_cubes()
+{
+
 }
 
 int main(int argc, char** argv)
@@ -154,6 +143,18 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
+	ohmd_device* lc = ohmd_list_open_device_s(ctx, lcontrollerdev, settings);
+	if(!lc){
+		printf("failed to open device: %s\n", ohmd_ctx_get_error(ctx));
+		return 1;
+	}
+	
+	ohmd_device* rc = ohmd_list_open_device_s(ctx, rcontrollerdev, settings);
+	if(!rc){
+		printf("failed to open device: %s\n", ohmd_ctx_get_error(ctx));
+		return 1;
+	}
+	
 	printf("HMD:\n");
 	printf("\tproduct: %s\n", ohmd_list_gets(ctx, hmddev, OHMD_PRODUCT));
 
@@ -193,32 +194,29 @@ int main(int argc, char** argv)
 	ohmd_device_settings_destroy(settings);
 
 	gl_ctx gl;
-	init_gl(&gl, hmd_w, hmd_h);
+	GLuint VAOs[2];
+	GLuint appshader;
+	init_gl(&gl, hmd_w, hmd_h, VAOs, &appshader);
+
+	glEnable(GL_DEBUG_OUTPUT);
+	glDebugMessageCallback( MessageCallback, 0 );
+
+	int eye_w = hmd_w/2*OVERSAMPLE_SCALE;
+	int eye_h = hmd_h*OVERSAMPLE_SCALE;
+
+	GLuint textures[2];
+	GLuint framebuffers[2];
+	GLuint depthbuffers[2];
+	for (int i = 0; i < 2; i++)
+		create_fbo(eye_w, eye_h, &framebuffers[i], &textures[i], &depthbuffers[i]);
 
 	SDL_ShowCursor(SDL_DISABLE);
 
 	const char* vertex;
-	ohmd_gets(OHMD_GLSL_DISTORTION_VERT_SRC, &vertex);
+	ohmd_gets(OHMD_GLSL_330_DISTORTION_VERT_SRC, &vertex);
 	const char* fragment;
-	ohmd_gets(OHMD_GLSL_DISTORTION_FRAG_SRC, &fragment);
-
-	GLuint shader = compile_shader(vertex, fragment);
-	glUseProgram(shader);
-	glUniform1i(glGetUniformLocation(shader, "warpTexture"), 0);
-	glUniform2fv(glGetUniformLocation(shader, "ViewportScale"), 1, viewport_scale);
-	glUniform3fv(glGetUniformLocation(shader, "aberr"), 1, aberr_scale);
-	glUseProgram(0);
-
-	GLuint list = gen_cubes();
-
-	int eye_w = hmd_w/2*OVERSAMPLE_SCALE;
-	int eye_h = hmd_h*OVERSAMPLE_SCALE;
-	GLuint left_color_tex = 0, left_depth_tex = 0, left_fbo = 0;
-	create_fbo(eye_w, eye_h, &left_fbo, &left_color_tex, &left_depth_tex);
-
-	GLuint right_color_tex = 0, right_depth_tex = 0, right_fbo = 0;
-	create_fbo(eye_w, eye_h, &right_fbo, &right_color_tex, &right_depth_tex);
-
+	ohmd_gets(OHMD_GLSL_330_DISTORTION_FRAG_SRC, &fragment);
+	GLuint distortionshader = compile_shader(vertex, fragment);
 
 	bool done = false;
 	bool crosshair_overlay = false;
@@ -318,106 +316,107 @@ int main(int argc, char** argv)
 			}
 		}
 
-		// Common scene state
-		glEnable(GL_BLEND);
-		glEnable(GL_DEPTH_TEST);
-		float matrix[16];
-
-		// set hmd rotation, for left eye.
-		glMatrixMode(GL_PROJECTION);
-		ohmd_device_getf(hmd, OHMD_LEFT_EYE_GL_PROJECTION_MATRIX, matrix);
-		glLoadMatrixf(matrix);
-
-		glMatrixMode(GL_MODELVIEW);
-		ohmd_device_getf(hmd, OHMD_LEFT_EYE_GL_MODELVIEW_MATRIX, matrix);
-		glLoadMatrixf(matrix);
-
-		// Draw scene into framebuffer.
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, left_fbo);
 		glViewport(0, 0, eye_w, eye_h);
-		glClearColor(0.0, 0.0, 0.0, 1.0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		draw_scene(list);
-		if (crosshair_overlay) {
-			glClear(GL_DEPTH_BUFFER_BIT);
-			glLineWidth(2.0*OVERSAMPLE_SCALE);
-			glColor4f(1.0, 0.5, 0.0, 1.0);
-			draw_crosshairs(0.1, 2*left_lens_center[0]/viewport_scale[0] - 1.0f, 2*left_lens_center[1]/viewport_scale[1] - 1.0f);
+		glScissor(0, 0, eye_w, eye_h);
+
+		glUseProgram(appshader);
+		for (int i = 0; i < 2; i++)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[i]);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textures[i], 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthbuffers[i], 0);
+
+			glClearColor(0.0, 0, 0.0, 1.0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			glBindVertexArray(VAOs[0]);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			glEnable(GL_DEPTH_TEST);
+			glEnable(GL_SCISSOR_TEST);
+
+			float projectionmatrix[16];
+			ohmd_device_getf(hmd, OHMD_LEFT_EYE_GL_PROJECTION_MATRIX, projectionmatrix);
+			glUniformMatrix4fv(glGetUniformLocation(appshader, "proj"), 1, GL_FALSE, projectionmatrix);
+
+			float viewmatrix[16];
+			ohmd_device_getf(hmd, OHMD_LEFT_EYE_GL_MODELVIEW_MATRIX, viewmatrix);
+			glUniformMatrix4fv(glGetUniformLocation(appshader, "view"), 1, GL_FALSE, viewmatrix);
+
+			int colorLoc = glGetUniformLocation(appshader, "uniformColor");
+			glUniform3f(colorLoc, 0.0, 0.0, 0.0); // 0, 0, 0 will get replaced by uv derived color in the shader
+
+			float cubedist = 5.0;
+			mat4_t modelmatrix_front = m4_translation(vec3(0.0f, 0.0f, -cubedist));
+			mat4_t modelmatrix_back = m4_translation(vec3(0.0f, 0.0f, cubedist));
+			mat4_t modelmatrix_left = m4_translation(vec3(-cubedist, 0.0f, 0.0f));
+			mat4_t modelmatrix_right = m4_translation(vec3(cubedist, 0.0f, 0.0f));
+
+			const float rotations_per_sec = 3;
+			mat4_t rotationmatrix = m4_rotation_y(degreesToRadians(35));
+			modelmatrix_front = m4_mul(modelmatrix_front, rotationmatrix);
+			modelmatrix_back = m4_mul(modelmatrix_back, rotationmatrix);
+			modelmatrix_left = m4_mul(modelmatrix_left, rotationmatrix);
+			modelmatrix_right = m4_mul(modelmatrix_right, rotationmatrix);
+
+			int modelLoc = glGetUniformLocation(appshader, "model");
+			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) m4_translation(vec3(0.0f, 0.0f, -cubedist)).m);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+
+			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) m4_translation(vec3(0.0f, 0.0f, cubedist)).m);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+
+			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) m4_translation(vec3(-cubedist, 0.0f, 0.0f)).m);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+
+			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) m4_translation(vec3(cubedist, 0.0f, 0.0f)).m);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 
-		// set hmd rotation, for right eye.
-		glMatrixMode(GL_PROJECTION);
-		ohmd_device_getf(hmd, OHMD_RIGHT_EYE_GL_PROJECTION_MATRIX, matrix);
-		glLoadMatrixf(matrix);
+		// draw the textures to the screen, applying the distortion shader
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		glMatrixMode(GL_MODELVIEW);
-		ohmd_device_getf(hmd, OHMD_RIGHT_EYE_GL_MODELVIEW_MATRIX, matrix);
-		glLoadMatrixf(matrix);
+		glUseProgram(distortionshader);
+		glUniform1i(glGetUniformLocation(distortionshader, "warpTexture"), 0);
+		glUniform2fv(glGetUniformLocation(distortionshader, "ViewportScale"), 1, viewport_scale);
+		glUniform3fv(glGetUniformLocation(distortionshader, "aberr"), 1, aberr_scale);
+		glUniform1f(glGetUniformLocation(distortionshader, "WarpScale"), warp_scale*warp_adj);
+		glUniform4fv(glGetUniformLocation(distortionshader, "HmdWarpParam"), 1, distortion_coeffs);
+		// The shader is set up to render starting at the middle of the viewport
+		// and half its size. Move it to the bottom left and double its size.
+		float mvp[16] = {
+			2.0, 0.0, 0.0, 0.0,
+			0.0, 2.0, 0.0, 0.0,
+			0.0, 0.0, 2.0, 0.0,
+			-1.0, -1.0, 0.0, 1.0
+		};
+		glUniformMatrix4fv(glGetUniformLocation(distortionshader, "mvp"), 1, GL_FALSE, mvp);
 
-		// Draw scene into framebuffer.
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, right_fbo);
-		glViewport(0, 0, eye_w, eye_h);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		draw_scene(list);
-		if (crosshair_overlay) {
-			glClear(GL_DEPTH_BUFFER_BIT);
-			glLineWidth(5.0);
-			glColor4f(1.0, 0.5, 0.0, 1.0);
-			draw_crosshairs(0.1, 2*right_lens_center[0]/viewport_scale[0] - 1.0f, 2*right_lens_center[1]/viewport_scale[1] - 1.0f);
+		for (int i = 0; i < 2; i++)
+		{
+			if (i == 0) {
+				glViewport(0, 0, hmd_w / 2, hmd_h);
+				glScissor(0, 0, hmd_w / 2, hmd_h);
+				glClearColor(0.5, 0, 0.0, 1.0);
+			} else {
+				glViewport(hmd_w / 2, 0, hmd_w / 2, hmd_h);
+				glScissor(hmd_w / 2, 0, hmd_w / 2, hmd_h);
+				glClearColor(0, 0.5, 0.0, 1.0);
+			}
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+			glUniform2fv(glGetUniformLocation(distortionshader, "LensCenter"), 1, i == 0 ? left_lens_center : right_lens_center);
+
+			glBindVertexArray(VAOs[1]);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, textures[i]);
+
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+			glDrawArrays(GL_TRIANGLES, 3, 3);
 		}
-
-		// Clean up common draw state
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-		glDisable(GL_BLEND);
-		glDisable(GL_DEPTH_TEST);
-
-
-		// Setup ortho state.
-		glUseProgram(shader);
-		glUniform1f(glGetUniformLocation(shader, "WarpScale"), warp_scale*warp_adj);
-		glUniform4fv(glGetUniformLocation(shader, "HmdWarpParam"), 1, distortion_coeffs);
-		glViewport(0, 0, hmd_w, hmd_h);
-		glEnable(GL_TEXTURE_2D);
-		glColor4d(1, 1, 1, 1);
-
-		// Setup simple render state
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-
-		// Draw left eye
-		glUniform2fv(glGetUniformLocation(shader, "LensCenter"), 1, left_lens_center);
-		glBindTexture(GL_TEXTURE_2D, left_color_tex);
-		glBegin(GL_QUADS);
-		glTexCoord2d( 0,  0);
-		glVertex3d(  -1, -1, 0);
-		glTexCoord2d( 1,  0);
-		glVertex3d(   0, -1, 0);
-		glTexCoord2d( 1,  1);
-		glVertex3d(   0,  1, 0);
-		glTexCoord2d( 0,  1);
-		glVertex3d(  -1,  1, 0);
-		glEnd();
-
-		// Draw right eye
-		glUniform2fv(glGetUniformLocation(shader, "LensCenter"), 1, right_lens_center);
-		glBindTexture(GL_TEXTURE_2D, right_color_tex);
-		glBegin(GL_QUADS);
-		glTexCoord2d( 0,  0);
-		glVertex3d(   0, -1, 0);
-		glTexCoord2d( 1,  0);
-		glVertex3d(   1, -1, 0);
-		glTexCoord2d( 1,  1);
-		glVertex3d(   1,  1, 0);
-		glTexCoord2d( 0,  1);
-		glVertex3d(   0,  1, 0);
-		glEnd();
-
-		// Clean up state.
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glDisable(GL_TEXTURE_2D);
-		glUseProgram(0);
 
 		// Da swap-dawup!
 		SDL_GL_SwapWindow(gl.window);
