@@ -15,31 +15,24 @@
 #include <signal.h>
 #endif
 
-#ifndef M_PI
-#define M_PI 3.14159265359
-#endif
-
-
 static char* vertexshader =
 "#version 450 core\n"
 "layout(location = 0) in vec3 aPos;\n"
 "layout(location = 2) uniform mat4 model;\n"
 "layout(location = 3) uniform mat4 view;\n"
 "layout(location = 4) uniform mat4 proj;\n"
-"layout(location = 5) in vec2 aColor;\n"
 "out vec2 vertexColor;\n"
 "void main() {\n"
 "	gl_Position = proj * view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-"	vertexColor = aColor;\n"
 "}\n";
 
 static char* fragmentshader =
 "#version 450 core\n"
 "layout(location = 0) out vec4 FragColor;\n"
-"layout(location = 1) uniform vec3 uniformColor;\n"
+"layout(location = 1) uniform vec4 uniformColor;\n"
 "in vec2 vertexColor;\n"
 "void main() {\n"
-"	FragColor = (uniformColor.x < 0.01 && uniformColor.y < 0.01 && uniformColor.z < 0.01) ? vec4(vertexColor, 1.0, 1.0) : vec4(uniformColor, 1.0);\n"
+"	FragColor = vec4(uniformColor);\n"
 "}\n";
 
 void init_gl(gl_ctx* ctx, int w, int h, GLuint *VAOs, GLuint *appshader)
@@ -165,7 +158,7 @@ void init_gl(gl_ctx* ctx, int w, int h, GLuint *VAOs, GLuint *appshader)
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
-		// two driangles draw a quad from -1,-1 to 1,1
+	// two triangles draw a quad from -1,-1 to 1,1
 	float quadvertices[] = {
 		0, 1,
 		0, 0,
