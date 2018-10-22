@@ -168,6 +168,8 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 			oquatf_mult_me((quatf*) out, &rollq);
 			//oquatf_mult_me((quatf*) out, &yawq);
 
+			//printf("quat %f %f %f %f\n", out[0], out[1], out[2], out[3]);
+
 		} else if (priv->id == 1) {
 			//quatf yawq;
 			quatf pitchq;
@@ -202,6 +204,7 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 			out[0] = hmdpos.x;
 			out[1] = hmdpos.y;
 			out[2] = hmdpos.z;
+			//printf ("vec %f %f %f\n", out[0], out[1], out[2]);
 		}
 		else if(priv->id == 1)
 		{
@@ -288,7 +291,6 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 	}
 	if (priv->id == 1 || priv->id == 2) {
 		// both controllers have the same layout
-		printf("asdf\n");
 		priv->base.properties.control_count = 8;
 		priv->base.properties.controls_hints[0] = OHMD_ANALOG_PRESS;
 		priv->base.properties.controls_hints[1] = OHMD_TRIGGER_CLICK;

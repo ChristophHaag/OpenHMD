@@ -12,11 +12,16 @@
 
 #include <SDL.h>
 
+#define GL_GLEXT_PROTOTYPES 1
+#define GL3_PROTOTYPES 1
+
 #ifndef __APPLE__
 #include <GL/glew.h>
 #include <GL/gl.h>
 #else
-#include <OpenGL/gl.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
+
 static inline void glewInit(void) {}
 #endif
 
@@ -29,7 +34,7 @@ typedef struct {
 
 void ortho(gl_ctx* ctx);
 void perspective(gl_ctx* ctx);
-void init_gl(gl_ctx* ctx, int w, int h);
+void init_gl(gl_ctx* ctx, int w, int h, GLuint *VAOs, GLuint *appshader);
 void draw_cube();
 GLuint compile_shader(const char* vertex, const char* fragment);
 void create_fbo(int eye_width, int eye_height, GLuint* fbo, GLuint* color_tex, GLuint* depth_tex);

@@ -19,7 +19,30 @@
 #define M_PI 3.14159265359
 #endif
 
-void init_gl(gl_ctx* ctx, int w, int h)
+
+static char* vertexshader =
+"#version 450 core\n"
+"layout(location = 0) in vec3 aPos;\n"
+"layout(location = 2) uniform mat4 model;\n"
+"layout(location = 3) uniform mat4 view;\n"
+"layout(location = 4) uniform mat4 proj;\n"
+"layout(location = 5) in vec2 aColor;\n"
+"out vec2 vertexColor;\n"
+"void main() {\n"
+"	gl_Position = proj * view * model * vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+"	vertexColor = aColor;\n"
+"}\n";
+
+static char* fragmentshader =
+"#version 450 core\n"
+"layout(location = 0) out vec4 FragColor;\n"
+"layout(location = 1) uniform vec3 uniformColor;\n"
+"in vec2 vertexColor;\n"
+"void main() {\n"
+"	FragColor = (uniformColor.x < 0.01 && uniformColor.y < 0.01 && uniformColor.z < 0.01) ? vec4(vertexColor, 1.0, 1.0) : vec4(uniformColor, 1.0);\n"
+"}\n";
+
+void init_gl(gl_ctx* ctx, int w, int h, GLuint *VAOs, GLuint *appshader)
 {
 	memset(ctx, 0, sizeof(gl_ctx));
 
@@ -29,6 +52,10 @@ void init_gl(gl_ctx* ctx, int w, int h)
 		printf("SDL_Init failed\n");
 		exit(-1);
 	}
+
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
@@ -65,79 +92,100 @@ void init_gl(gl_ctx* ctx, int w, int h)
 	printf("OpenGL Version: %s\n", glGetString(GL_VERSION)); 
 
 	// == Initialize OpenGL ==
+
+	*appshader = compile_shader (vertexshader, fragmentshader);
+	glUseProgram(*appshader);
+
+	float vertices[] = {
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+		0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+		0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+		0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+	};
+
+	GLuint VBOs[1];
+	glGenBuffers(1, VBOs);
+
+	glGenVertexArrays(1, &VAOs[0]);
+
+	glBindVertexArray(VAOs[0]);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) 0);
+	glEnableVertexAttribArray(0);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*) (3 * sizeof(float)));
+	glEnableVertexAttribArray(5);
+
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_ALPHA_TEST);
-	glLoadIdentity();
 
-	glShadeModel(GL_SMOOTH);
-	glDisable(GL_DEPTH_TEST);
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-	glLoadIdentity();
+	glUseProgram(0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
 
-	glMatrixMode(GL_PROJECTION);
-	glEnable(GL_POLYGON_SMOOTH); 
-	glLoadIdentity();
+		// two driangles draw a quad from -1,-1 to 1,1
+	float quadvertices[] = {
+		0, 1,
+		0, 0,
+		1, 0,
 
-	glViewport(0, 0, ctx->w, ctx->h);
-}
+		0, 1,
+		1, 1,
+		1, 0
+	};
+	GLuint distortionVBO[1];
+	glGenBuffers(1, distortionVBO);
 
-void ortho(gl_ctx* ctx)
-{
-	glMatrixMode(GL_PROJECTION);
-	//glPushMatrix();
-	glLoadIdentity();
+	glGenVertexArrays(1, &VAOs[1]);
 
-	glOrtho(0.0f, ctx->w, ctx->h, 0.0f, -1.0f, 1.0f);
-	glMatrixMode(GL_MODELVIEW);
-	//glPushMatrix();
-	glLoadIdentity();
-	
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_DEPTH);
-
-	glDisable(GL_MULTISAMPLE);
-}
-
-void draw_cube()
-{
-	glBegin(GL_QUADS);
-
-	glVertex3f(  0.5f,  0.5f, -0.5f); /* Top Right Of The Quad (Top)      */
-	glVertex3f( -0.5f,  0.5f, -0.5f); /* Top Left Of The Quad (Top)       */
-	glVertex3f( -0.5f,  0.5f,  0.5f); /* Bottom Left Of The Quad (Top)    */
-	glVertex3f(  0.5f,  0.5f,  0.5f); /* Bottom Right Of The Quad (Top)   */
-
-	glVertex3f(  0.5f, -0.5f,  0.5f); /* Top Right Of The Quad (Botm)     */
-	glVertex3f( -0.5f, -0.5f,  0.5f); /* Top Left Of The Quad (Botm)      */
-	glVertex3f( -0.5f, -0.5f, -0.5f); /* Bottom Left Of The Quad (Botm)   */
-	glVertex3f(  0.5f, -0.5f, -0.5f); /* Bottom Right Of The Quad (Botm)  */
-
-	glVertex3f(  0.5f,  0.5f,  0.5f); /* Top Right Of The Quad (Front)    */
-	glVertex3f( -0.5f,  0.5f,  0.5f); /* Top Left Of The Quad (Front)     */
-	glVertex3f( -0.5f, -0.5f,  0.5f); /* Bottom Left Of The Quad (Front)  */
-	glVertex3f(  0.5f, -0.5f,  0.5f); /* Bottom Right Of The Quad (Front) */
-
-	glVertex3f(  0.5f, -0.5f, -0.5f); /* Bottom Left Of The Quad (Back)   */
-	glVertex3f( -0.5f, -0.5f, -0.5f); /* Bottom Right Of The Quad (Back)  */
-	glVertex3f( -0.5f,  0.5f, -0.5f); /* Top Right Of The Quad (Back)     */
-	glVertex3f(  0.5f,  0.5f, -0.5f); /* Top Left Of The Quad (Back)      */
-
-	glVertex3f( -0.5f,  0.5f,  0.5f); /* Top Right Of The Quad (Left)     */
-	glVertex3f( -0.5f,  0.5f, -0.5f); /* Top Left Of The Quad (Left)      */
-	glVertex3f( -0.5f, -0.5f, -0.5f); /* Bottom Left Of The Quad (Left)   */
-	glVertex3f( -0.5f, -0.5f,  0.5f); /* Bottom Right Of The Quad (Left)  */
-
-	glVertex3f(  0.5f,  0.5f, -0.5f); /* Top Right Of The Quad (Right)    */
-	glVertex3f(  0.5f,  0.5f,  0.5f); /* Top Left Of The Quad (Right)     */
-	glVertex3f(  0.5f, -0.5f,  0.5f); /* Bottom Left Of The Quad (Right)  */
-	glVertex3f(  0.5f, -0.5f, -0.5f); /* Bottom Right Of The Quad (Right) */
-
-	glEnd();
-
+	glBindVertexArray(VAOs[1]);
+	glBindBuffer(GL_ARRAY_BUFFER, distortionVBO[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadvertices), quadvertices, GL_DYNAMIC_DRAW);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
 }
 
 static void compile_shader_src(GLuint shader, const char* src)
@@ -214,14 +262,14 @@ void create_fbo(int eye_width, int eye_height, GLuint* fbo, GLuint* color_tex, G
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, *fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, *fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *color_tex, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, *depth_tex, 0);
 
-	GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
-	if(status != GL_FRAMEBUFFER_COMPLETE_EXT){
+	if(status != GL_FRAMEBUFFER_COMPLETE){
 		printf("failed to create fbo %x\n", status);
 	}
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
