@@ -75,29 +75,36 @@ print_matrix(float m[])
 
 mat4_t cube_modelmatrix[18];
 vec3_t cube_colors[18];
+float cube_alpha[18];
 
 void gen__cubes()
 {
-	GLuint list = glGenLists(1);
-
-	// Set the random seed.
-	srand(42);
-
-	glNewList(list, GL_COMPILE);
-
 	for(int i = 0; i < 18; i ++) {
 		cube_modelmatrix[i] = m4_identity();
-		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_rotation(i * 20, vec3(0, 1, 0)));
-		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_translation(vec3(0, 0, -1)));
+		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_rotation(degreesToRadians(i * 20), vec3(0, 1, 0)));
+		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_translation(vec3(0, 0, -5)));
 		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_rotation(degreesToRadians(randf() * 360), vec3(randf(), randf(), randf())));
 
 		cube_colors[i] = vec3(randf(), randf(), randf());
+		cube_alpha[i] = randf();
 	}
 }
 
-void draw_cubes()
+void draw_cubes(GLuint shader)
 {
+	int modelLoc = glGetUniformLocation(shader, "model");
+	int colorLoc = glGetUniformLocation(shader, "uniformColor");
+	for(int i = 0; i < 18; i ++) {
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) cube_modelmatrix[i].m);
+		glUniform4f(colorLoc, cube_colors[i].x, cube_colors[i].y, cube_colors[i].z, cube_alpha[i]);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+	}
 
+	mat4_t floor = m4_translation(vec3(0, -25, 0));
+	floor = m4_mul(m4_scaling(vec3(10, 0.1, 10)), floor);
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) floor.m);
+	glUniform4f(colorLoc, 0, 1.0f, .25f, .25f);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
 int main(int argc, char** argv)
@@ -209,6 +216,8 @@ int main(int argc, char** argv)
 	GLuint depthbuffers[2];
 	for (int i = 0; i < 2; i++)
 		create_fbo(eye_w, eye_h, &framebuffers[i], &textures[i], &depthbuffers[i]);
+
+	gen__cubes();
 
 	SDL_ShowCursor(SDL_DISABLE);
 
@@ -342,34 +351,7 @@ int main(int argc, char** argv)
 			ohmd_device_getf(hmd, OHMD_LEFT_EYE_GL_MODELVIEW_MATRIX, viewmatrix);
 			glUniformMatrix4fv(glGetUniformLocation(appshader, "view"), 1, GL_FALSE, viewmatrix);
 
-			int colorLoc = glGetUniformLocation(appshader, "uniformColor");
-			glUniform3f(colorLoc, 0.0, 0.0, 0.0); // 0, 0, 0 will get replaced by uv derived color in the shader
-
-			float cubedist = 5.0;
-			mat4_t modelmatrix_front = m4_translation(vec3(0.0f, 0.0f, -cubedist));
-			mat4_t modelmatrix_back = m4_translation(vec3(0.0f, 0.0f, cubedist));
-			mat4_t modelmatrix_left = m4_translation(vec3(-cubedist, 0.0f, 0.0f));
-			mat4_t modelmatrix_right = m4_translation(vec3(cubedist, 0.0f, 0.0f));
-
-			const float rotations_per_sec = 3;
-			mat4_t rotationmatrix = m4_rotation_y(degreesToRadians(35));
-			modelmatrix_front = m4_mul(modelmatrix_front, rotationmatrix);
-			modelmatrix_back = m4_mul(modelmatrix_back, rotationmatrix);
-			modelmatrix_left = m4_mul(modelmatrix_left, rotationmatrix);
-			modelmatrix_right = m4_mul(modelmatrix_right, rotationmatrix);
-
-			int modelLoc = glGetUniformLocation(appshader, "model");
-			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) m4_translation(vec3(0.0f, 0.0f, -cubedist)).m);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-
-			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) m4_translation(vec3(0.0f, 0.0f, cubedist)).m);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-
-			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) m4_translation(vec3(-cubedist, 0.0f, 0.0f)).m);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
-
-			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) m4_translation(vec3(cubedist, 0.0f, 0.0f)).m);
-			glDrawArrays(GL_TRIANGLES, 0, 36);
+			draw_cubes(appshader);
 		}
 
 		// draw the textures to the screen, applying the distortion shader
