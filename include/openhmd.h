@@ -163,12 +163,9 @@ typedef enum {
 	/** float[OHMD_CONTROL_COUNT] (get): Get the state of the device's controls. */
 	OHMD_CONTROLS_STATE                = 22,
 	
-	/** float[16] (get): A "ready to use" OpenGL style 4x4 matrix with a modelview matrix for the
-	    left eye of the HMD. */
-	OHMD_LEFT_EYE_GL_MODELVIEW_MATRIX_2     =  23,
-	/** float[16] (get): A "ready to use" OpenGL style 4x4 matrix with a modelview matrix for the
-	    right eye of the HMD. */
-	OHMD_RIGHT_EYE_GL_MODELVIEW_MATRIX_2    =  24,
+	/** float[16] (get): A "ready to use" OpenGL style 4x4 matrix with a model matrix for the
+	    device. Useful e.g. to render controllers in world space */
+	OHMD_GL_MODEL_MATRIX     =  23,
 } ohmd_float_value;
 
 /** A collection of int value information types used for getting information with ohmd_device_geti(). */

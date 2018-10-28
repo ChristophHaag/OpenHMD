@@ -18,7 +18,7 @@
 #define degreesToRadians(angleDegrees) ((angleDegrees) * M_PI / 180.0)
 #define radiansToDegrees(angleRadians) ((angleRadians) * 180.0 / M_PI)
 
-#define OVERSAMPLE_SCALE 12.0
+#define OVERSAMPLE_SCALE 2.0
 
 void GLAPIENTRY
 MessageCallback( GLenum source,
@@ -73,6 +73,7 @@ print_matrix(float m[])
             m[3], m[7], m[11], m[15]);
 }
 
+// cubes arranged in a circle around the user, 20° between them. 360°/20° = 18 cubes
 mat4_t cube_modelmatrix[18];
 vec3_t cube_colors[18];
 float cube_alpha[18];
@@ -82,7 +83,7 @@ void gen__cubes()
 	for(int i = 0; i < 18; i ++) {
 		cube_modelmatrix[i] = m4_identity();
 		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_rotation(degreesToRadians(i * 20), vec3(0, 1, 0)));
-		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_translation(vec3(0, 0, -5)));
+		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_translation(vec3(0, 1.8, -5)));
 		cube_modelmatrix[i] = m4_mul(cube_modelmatrix[i], m4_rotation(degreesToRadians(randf() * 360), vec3(randf(), randf(), randf())));
 
 		cube_colors[i] = vec3(randf(), randf(), randf());
@@ -100,10 +101,33 @@ void draw_cubes(GLuint shader)
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 	}
 
-	mat4_t floor = m4_translation(vec3(0, -25, 0));
-	floor = m4_mul(m4_scaling(vec3(10, 0.1, 10)), floor);
+	// floor is 10x10m, 0.1m thick
+	mat4_t floor = m4_identity();
+	floor = m4_mul(floor, m4_scaling(vec3(10, 0.1, 10)));
+	// we could move the floor to -1.8m height if the HMD tracker sits at zero
+	// floor = m4_mul(floor, m4_translation(vec3(0, -1.8, 0)));
 	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) floor.m);
-	glUniform4f(colorLoc, 0, 1.0f, .25f, .25f);
+	glUniform4f(colorLoc, 0, .4f, .25f, .9f);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+}
+
+void draw_controllers(GLuint shader, ohmd_device *lc, ohmd_device *rc)
+{
+	int modelLoc = glGetUniformLocation(shader, "model");
+	int colorLoc = glGetUniformLocation(shader, "uniformColor");
+
+	mat4_t lcmodel;
+	ohmd_device_getf(lc, OHMD_GL_MODEL_MATRIX, (float*) lcmodel.m);
+	lcmodel = m4_mul(lcmodel, m4_scaling(vec3(0.03, 0.03, 0.1)));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) lcmodel.m);
+	glUniform4f(colorLoc, 1.0, 0.0, 0.0, 1.0);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+
+	mat4_t rcmodel;
+	ohmd_device_getf(rc, OHMD_GL_MODEL_MATRIX, (float*) rcmodel.m);
+	rcmodel = m4_mul(rcmodel, m4_scaling(vec3(0.03, 0.03, 0.1)));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*) rcmodel.m);
+	glUniform4f(colorLoc, 0.0, 1.0, 0.0, 1.0);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
@@ -352,6 +376,7 @@ int main(int argc, char** argv)
 			glUniformMatrix4fv(glGetUniformLocation(appshader, "view"), 1, GL_FALSE, viewmatrix);
 
 			draw_cubes(appshader);
+			draw_controllers(appshader, lc, rc);
 		}
 
 		// draw the textures to the screen, applying the distortion shader
