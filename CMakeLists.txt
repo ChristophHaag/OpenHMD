@@ -160,6 +160,7 @@ if (OPENHMD_EXAMPLE_SDL)
 	find_package(GLEW REQUIRED)
 	find_package(OpenGL REQUIRED)
 	add_subdirectory(./examples/opengl)
+	add_subdirectory(./examples/opengl3)
 endif (OPENHMD_EXAMPLE_SDL)
 
 set(TARGETS "")

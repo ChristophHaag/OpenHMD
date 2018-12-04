@@ -132,6 +132,17 @@ if get_option('default_library') == 'shared'
 		gldep = dependency('gl')
 		glewdep = dependency('glew')
 		executable('openhmd_opengl_example', opengl_sources , include_directories : include_directories(['./include', 'examples/opengl']), link_with: [openhmd_lib], dependencies : [sdldep, gldep, glewdep], install : true)
+
+		# math_3d.h requires math dep for sqrtf()
+		cc = meson.get_compiler('c')
+		m_dep = cc.find_library('m', required : false)
+
+		opengl3_sources = [
+			'examples/opengl3/main.c',
+			'examples/opengl3/gl.c',
+		]
+		sdldep = dependency('sdl2')
+		executable('openhmd_opengl3_example', opengl3_sources , include_directories : include_directories(['./include', 'examples/opengl3']), link_with: [openhmd_lib], dependencies : [sdldep, gldep, glewdep, m_dep], install : true)
 	endif
 endif
 
