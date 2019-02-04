@@ -161,24 +161,7 @@ void init_gl(gl_ctx* ctx, int w, int h, GLuint *VAOs, GLuint *appshader)
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 
-	// One big triangle that covers the screen space from -1,-1 to 1,1.
-	// Just like a quad made out of two smaller triangles would.
-	float quadvertices[] = {
-		-1, 3,
-		-1, -1,
-		3, -1
-	};
-	GLuint distortionVBO[1];
-	glGenBuffers(1, distortionVBO);
 
-	glGenVertexArrays(1, &VAOs[1]);
-
-	glBindVertexArray(VAOs[1]);
-	glBindBuffer(GL_ARRAY_BUFFER, distortionVBO[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadvertices), quadvertices, GL_DYNAMIC_DRAW);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
 }
 
 static void compile_shader_src(GLuint shader, const char* src)
