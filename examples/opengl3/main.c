@@ -226,7 +226,8 @@ int main(int argc, char** argv)
 	glEnable(GL_DEBUG_OUTPUT);
 	glDebugMessageCallback(gl_debug_callback, 0);
 
-	SimpleRenderer *renderer = openhmd_create_simple_renderer(hmd);
+	
+	SimpleRenderer *renderer = openhmd_create_simple_renderer(hmd, gl.glcontext, gl.window);
 	if (!renderer)
 		return 1;
 	
@@ -372,6 +373,8 @@ int main(int argc, char** argv)
 		}
 
 		openhmd_render_textures(renderer, textures[0], textures[1]);
+		
+		openhmd_render_companion(renderer, textures[0]);
 	}
 
 	ohmd_ctx_destroy(ctx);

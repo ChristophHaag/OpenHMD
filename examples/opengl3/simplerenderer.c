@@ -56,7 +56,7 @@ GLuint compile_shader(const char* vertex, const char* fragment)
 }
 
 SimpleRenderer *
-openhmd_create_simple_renderer (ohmd_device *device)
+openhmd_create_simple_renderer(ohmd_device *device, SDL_GLContext appcontext, SDL_Window *appwindow)
 {
 	// TODO: rotated screeens
 	int hmd_w, hmd_h;
@@ -65,14 +65,16 @@ openhmd_create_simple_renderer (ohmd_device *device)
 
 	SimpleRenderer *renderer = calloc(1, sizeof(SimpleRenderer));
 	renderer->device = device;
-	renderer->applicationglcontext = SDL_GL_GetCurrentContext();
-	if (!renderer->applicationglcontext) {
+
+	if (!appcontext || !appwindow) {
 		printf("ERROR: Simple Renderer only works with applications that run on "
 		"an OpenGL context created with SDL!\n");
 		free(renderer);
 		return NULL;
 	}
-	renderer->applicationwindow = SDL_GL_GetCurrentWindow();
+
+	renderer->applicationglcontext = appcontext;
+	renderer->applicationwindow = appwindow;
 	
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
@@ -161,7 +163,16 @@ openhmd_create_simple_renderer (ohmd_device *device)
 }
 
 void
-openhmd_render_textures (SimpleRenderer *renderer, GLuint left, GLuint right)
+openhmd_render_companion(SimpleRenderer *renderer, GLuint tex)
+{
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, renderer->w, renderer->h, 0, 0, renderer->w, renderer->h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	SDL_GL_SwapWindow(renderer->applicationwindow);
+}
+
+void
+openhmd_render_textures(SimpleRenderer *renderer, GLuint left, GLuint right)
 {
 	SDL_GL_MakeCurrent(renderer->window, renderer->glcontext);
 
@@ -195,8 +206,9 @@ openhmd_render_textures (SimpleRenderer *renderer, GLuint left, GLuint right)
 			glScissor(renderer->w / 2, 0, renderer->w / 2, renderer->h);
 			glClearColor(0, 0.5, 0.0, 1.0);
 		}
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		// TODO: Why does this clear both glViewports?
+		//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
@@ -204,7 +216,7 @@ openhmd_render_textures (SimpleRenderer *renderer, GLuint left, GLuint right)
 
 		glBindVertexArray(renderer->distortionVAO[0]);
 
-		glActiveTexture(GL_TEXTURE0);
+		//glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, i == 0 ? left : right);
 
 		glDrawArrays(GL_TRIANGLES, 0, 3);

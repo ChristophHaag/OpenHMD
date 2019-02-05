@@ -43,7 +43,10 @@ typedef struct SimpleRenderer
 } SimpleRenderer;
 
 SimpleRenderer *
-openhmd_create_simple_renderer (ohmd_device *device);
+openhmd_create_simple_renderer (ohmd_device *device, SDL_GLContext appcontext, SDL_Window *appwindow);
+
+void
+openhmd_render_companion(SimpleRenderer *renderer, GLuint tex);
 
 void
 openhmd_render_textures (SimpleRenderer *renderer, GLuint left, GLuint right);
