@@ -18,7 +18,7 @@ static void compile_shader_src(GLuint shader, const char* src)
 	}
 }
 
-GLuint compile_shader(const char* vertex, const char* fragment)
+static GLuint compile_shader(const char* vertex, const char* fragment)
 {
 	// Create the handles
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
