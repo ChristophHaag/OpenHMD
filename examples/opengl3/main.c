@@ -361,11 +361,11 @@ int main(int argc, char** argv)
 			glEnable(GL_SCISSOR_TEST);
 
 			float projectionmatrix[16];
-			ohmd_device_getf(hmd, OHMD_LEFT_EYE_GL_PROJECTION_MATRIX, projectionmatrix);
+			ohmd_device_getf(hmd, i == 0 ? OHMD_LEFT_EYE_GL_PROJECTION_MATRIX : OHMD_RIGHT_EYE_GL_PROJECTION_MATRIX, projectionmatrix);
 			glUniformMatrix4fv(glGetUniformLocation(appshader, "proj"), 1, GL_FALSE, projectionmatrix);
 
 			float viewmatrix[16];
-			ohmd_device_getf(hmd, OHMD_LEFT_EYE_GL_MODELVIEW_MATRIX, viewmatrix);
+			ohmd_device_getf(hmd, i == 0 ? OHMD_LEFT_EYE_GL_MODELVIEW_MATRIX : OHMD_RIGHT_EYE_GL_MODELVIEW_MATRIX, viewmatrix);
 			glUniformMatrix4fv(glGetUniformLocation(appshader, "view"), 1, GL_FALSE, viewmatrix);
 
 			draw_cubes(appshader);
