@@ -8,6 +8,10 @@
 
 //Using as code base: https://github.com/der-b/OpenHMD/tree/master/src/drv_sparkfun_9dof
 
+// TODO: configuration file
+#define RESOLUTION_X 2880
+#define RESOLUTION_Y 1600
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -163,12 +167,12 @@ static ohmd_device *open_device(ohmd_driver *driver, ohmd_device_desc *desc)
     // Set device properties (imitates the rift values)
     priv->base.properties.hsize = 0.128490f;
     priv->base.properties.vsize = 0.070940f;
-    priv->base.properties.hres = 1440;
-    priv->base.properties.vres = 2560;
+    priv->base.properties.hres = RESOLUTION_X;
+    priv->base.properties.vres = RESOLUTION_Y;
     priv->base.properties.lens_sep = 0.063500f;
     priv->base.properties.lens_vpos = 0.070940f / 2;
     priv->base.properties.fov = DEG_TO_RAD(103.0f);
-    priv->base.properties.ratio = (2560.0f / 1440.0f) / 2.0f;
+    priv->base.properties.ratio = (RESOLUTION_X / RESOLUTION_Y) / 2.0f;
 
     // calculate projection eye projection matrices from the device properties
     ohmd_calc_default_proj_matrices(&priv->base.properties);
