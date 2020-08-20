@@ -5,11 +5,20 @@
  * Distributed under the Boost 1.0 licence, see LICENSE for full text.
  */
 
-/* HTC Vive Driver */
-
-
+/* HTC Vive Survive Driver */
 #define HTC_ID                   0x0bb4
 #define VIVE_HMD                 0x2c87
+#define VIVE_PRO_HMD             0x0309
+
+#define VALVE_ID                 0x28de
+#define VIVE_WATCHMAN_DONGLE     0x2101
+#define VIVE_LIGHTHOUSE_FPGA_RX  0x2000
+#define VIVE_LHR                 0x2300 // VIVE PRO
+
+#define VIVE_CLOCK_FREQ 48000000.0f // Hz = 48 MHz
+
+#define VIVE_PRO_MAINBOARD_PID 0x0309
+#define VIVE_WATCHMAN_DONGLE_GEN2 0x2102
 
 #include <string.h>
 #include <wchar.h>
@@ -39,18 +48,24 @@ typedef struct vive_priv_struct {
 	double libsurvive_quat[4];
 } vive_priv;
 
+quatf abs_rotate_offset = { -sqrt(0.5), 0, 0 ,sqrt(0.5) };
+
 static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 {
 	vive_priv* priv = (vive_priv*)device;
 
 	switch(type){
 	case OHMD_ROTATION_QUAT:
-		out[0] = (FLT) priv->libsurvive_quat[0];
-		out[1] = (FLT) priv->libsurvive_quat[1];
-		out[2] = (FLT) priv->libsurvive_quat[2];
-		out[3] = (FLT) priv->libsurvive_quat[3];
-		//rotation 90° around X axis
-		//oquatf_mult_me((quatf*) out, &abs_rotate_offset);
+  {
+    quatf rotation;
+      rotation.x = (FLT) priv->libsurvive_quat[0];
+      rotation.y = (FLT) priv->libsurvive_quat[1];
+      rotation.z = (FLT) priv->libsurvive_quat[2];
+      rotation.w = (FLT) priv->libsurvive_quat[3];
+
+      //rotation 90° around X axis
+      oquatf_mult(&abs_rotate_offset, &rotation, (quatf*) out);
+    }
 		break;
 
 	case OHMD_POSITION_VECTOR:
@@ -58,7 +73,7 @@ static int getf(ohmd_device* device, ohmd_float_value type, float* out)
 		out[1] = (FLT) priv->libsurvive_pos[1];
 		out[2] = (FLT) priv->libsurvive_pos[2];
 
-		//oquatf_get_rotated(&abs_rotate_offset, (vec3f*) out, (vec3f*) out);
+    oquatf_get_rotated(&abs_rotate_offset, (vec3f*) out, (vec3f*) out);
 		break;
 
 	case OHMD_DISTORTION_K:
@@ -100,17 +115,17 @@ static void update_device(ohmd_device* device)
 
 		const char* codename = survive_simple_object_name(it);
 		//printf("%s (%u): %f %f %f %f %f %f %f\n", survive_simple_object_name(it), timecode, pose.Pos[0], pose.Pos[1], pose.Pos[2], pose.Rot[0], pose.Rot[1], pose.Rot[2], pose.Rot[3]);
-		if (strcmp(codename, "HMD") == 0) {
+    if (strcmp(codename, "HMD") == 0 || strcmp(codename, "T20") == 0) {
 			//printf("Pose: [%u][%s][% 08.8f,% 08.8f,% 08.8f] [% 08.8f,% 08.8f,% 08.8f,% 08.8f]\n", timecode, codename, pose.Pos[0], pose.Pos[1], pose.Pos[2], pose.Rot[0], pose.Rot[1], pose.Rot[2], pose.Rot[3]);
 			openhmd_position = priv->shared->hmd->libsurvive_pos;
 			openhmd_rotation = priv->shared->hmd->libsurvive_quat;
-		} else if (strcmp(codename, "WM0") == 0) {
+    } else if (strcmp(codename, "WM0") == 0 || strcmp(codename, "KN0") == 0) {
 			if (priv->shared->lc == NULL) continue; // app doesn't use lc
 			//printf("Pose: [%u][%s][% 08.8f,% 08.8f,% 08.8f] [% 08.8f,% 08.8f,% 08.8f,% 08.8f]\n", timecode, codename, pose.Pos[0], pose.Pos[1], pose.Pos[2], pose.Rot[0], pose.Rot[1], pose.Rot[2], pose.Rot[3]);
 			//printf("Controller 0 Pose: [%1.1x][%s][% 08.8f,% 08.8f,% 08.8f] [% 08.8f,% 08.8f,% 08.8f,% 08.8f]\n", lighthouse, so->codename, pose->Pos[0], pose->Pos[1], pose->Pos[2], pose->Rot[0], pose->Rot[1], pose->Rot[2], pose->Rot[3]);
 			openhmd_position = priv->shared->lc->libsurvive_pos;
 			openhmd_rotation = priv->shared->lc->libsurvive_quat;
-		} else if (strcmp(codename, "WM1") == 0) {
+    } else if (strcmp(codename, "WM1") == 0 || strcmp(codename, "KN1") == 0) {
 			if (priv->shared->rc == NULL) continue; // app doesn't use rc
 			//printf("Pose: [%u][%s][% 08.8f,% 08.8f,% 08.8f] [% 08.8f,% 08.8f,% 08.8f,% 08.8f]\n", timecode, codename, pose.Pos[0], pose.Pos[1], pose.Pos[2], pose.Rot[0], pose.Rot[1], pose.Rot[2], pose.Rot[3]);
 			//printf("Controller 1 Pose: [%1.1x][%s][% 08.8f,% 08.8f,% 08.8f] [% 08.8f,% 08.8f,% 08.8f,% 08.8f]\n", lighthouse, so->codename, pose->Pos[0], pose->Pos[1], pose->Pos[2], pose->Rot[0], pose->Rot[1], pose->Rot[2], pose->Rot[3]);
@@ -236,6 +251,10 @@ static ohmd_device* open_device(ohmd_driver* driver, ohmd_device_desc* desc)
 static void get_device_list(ohmd_driver* driver, ohmd_device_list* list)
 {
 	struct hid_device_info* devs = hid_enumerate(HTC_ID, VIVE_HMD);
+  if (devs == NULL) {
+    devs = hid_enumerate(VALVE_ID, VIVE_LHR);
+  }
+
 	struct hid_device_info* cur_dev = devs;
 
 	int idx = 0;
@@ -302,7 +321,7 @@ static void destroy_driver(ohmd_driver* drv)
 	free(drv);
 }
 
-ohmd_driver* ohmd_create_htc_vive_drv(ohmd_context* ctx)
+ohmd_driver* ohmd_create_htc_vive_survive_drv(ohmd_context* ctx)
 {
 	ohmd_driver* drv = ohmd_alloc(ctx, sizeof(ohmd_driver));
 

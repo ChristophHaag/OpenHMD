@@ -39,6 +39,10 @@ ohmd_context* OHMD_APIENTRY ohmd_ctx_create(void)
 	ctx->drivers[ctx->num_drivers++] = ohmd_create_htc_vive_drv(ctx);
 #endif
 
+#if DRIVER_HTC_VIVE_SURVIVE
+ctx->drivers[ctx->num_drivers++] = ohmd_create_htc_vive_survive_drv(ctx);
+#endif
+
 #if DRIVER_WMR
 	ctx->drivers[ctx->num_drivers++] = ohmd_create_wmr_drv(ctx);
 #endif

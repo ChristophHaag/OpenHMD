@@ -88,10 +88,13 @@ if(OPENHMD_DRIVER_PSVR)
 endif(OPENHMD_DRIVER_PSVR)
 
 if(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(SURVIVE REQUIRED IMPORTED_TARGET survive)
+
 	set(openhmd_source_files ${openhmd_source_files}
 	${CMAKE_CURRENT_LIST_DIR}/src/drv_htc_vive_survive/vive.c
 	)
-	add_definitions(-DDRIVER_HTC_VIVE)
+  add_definitions(-DDRIVER_HTC_VIVE_SURVIVE)
 endif(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
 
 if(OPENHMD_DRIVER_HTC_VIVE)
@@ -173,28 +176,16 @@ if (BUILD_BOTH_STATIC_SHARED_LIBS)
 	add_library(openhmd ALIAS openhmd-shared)
 
 	set(TARGETS "openhmd-shared" "openhmd-static")
-
 else ()
-
-	add_subdirectory(subprojects/libsurvive)
-
-	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/subprojects/libsurvive/include)
-	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/subprojects/libsurvive/redist)
-
 	# Static or Shared
 	add_library(openhmd SHARED ${openhmd_source_files})
 
 	#TODO: export(TARGETS openhmd FILE openhmd-config.cmake)
 
 	set(TARGETS "openhmd")
-
-	if(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
-		target_link_libraries(openhmd survive)
-	endif(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
 endif ()
 
 foreach(target ${TARGETS})
-
 	set_target_properties(${target} PROPERTIES VERSION ${LIB_VERSION_STRING} SOVERSION ${LIB_VERSION_MAJOR})
 	target_include_directories(${target} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 	target_link_libraries(${target} ${LIBS})
@@ -207,6 +198,9 @@ foreach(target ${TARGETS})
 	    target_compile_definitions(${target} PUBLIC -DOHMD_STATIC)
 	endif()
 
+  if(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
+    target_link_libraries(${target} PkgConfig::SURVIVE)
+  endif(OPENHMD_DRIVER_HTC_VIVE_SURVIVE)
 endforeach(target)
 
 CONFIGURE_FILE(
